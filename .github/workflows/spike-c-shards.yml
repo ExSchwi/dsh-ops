@@ -1,0 +1,61 @@
+# Spike C — the shard experiment. Three parallel jobs, each rebuilding for itself (plan A in #316:
+# no shared build job, no serial barrier), then running one third of the suite list.
+#
+# Each shard also prints the suite list it owns, so the union can be compared with the full list
+# without depending on what actually executed.
+# Experiment only: `ci/316-spike-*` branches, never part of CI.
+name: spike-c shards
+on:
+  push:
+    branches: ['ci/316-spike-c']
+  workflow_dispatch:
+jobs:
+  shard:
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '3'
+      DSH_OPS_SUITE_TIMEOUT_MS: '300000'
+      DSH_OPS_RETRY_TIMEOUTS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Set up pinned Rust
+        shell: bash
+        run: rustup toolchain install 1.97.1 --profile minimal && rustup default 1.97.1
+      - name: Reuse exact locked Rust build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: spike-c-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: spike-c-${{ runner.os }}-${{ runner.arch }}-
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Build the plugin, the worker and the IPC proxies
+        shell: bash
+        run: |
+          npm run build
+          cargo test --workspace --locked --manifest-path native/Cargo.toml
+          npm run build:ptc
+          npm run build:bash-ipc
+      - name: The suite list this shard owns
+        shell: bash
+        run: |
+          node -e "const fs=require('fs');const all=fs.readdirSync('test').filter(n=>n.endsWith('.test.mjs')).sort();const i=Number(process.env.SHARD),t=3;const mine=all.filter((_,p)=>p%t===i-1);console.log('SHARD_SUITES='+mine.length);for(const n of mine)console.log('SHARD_SUITE '+n)"
+        env:
+          SHARD: ${{ matrix.shard }}
+      - name: Run this shard
+        shell: bash
+        run: node test/run.mjs --shard ${{ matrix.shard }}/3

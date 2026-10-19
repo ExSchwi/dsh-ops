@@ -36,29 +36,61 @@ const testDir = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(testDir, '..')
 
 /**
- * The suites to run: every `*.test.mjs`, in name order, or the ones named on the
- * command line.
+ * The `--shard <index>/<total>` argument, if one was given. Sharding is what lets CI run this
+ * list on several runners at once: `index` is 1-based, so `2/3` is the second of three. The split
+ * is index-modulo over the sorted list, which makes every suite appear in exactly one shard and
+ * none disappear: concatenating `1/n` through `n/n` reproduces the unsharded list.
+ * @returns {{index: number, total: number}|undefined} the shard, or undefined for the whole list.
+ */
+function shardArgument() {
+  const argv = process.argv.slice(2)
+  const at = argv.indexOf('--shard')
+  if (at === -1) return undefined
+  const raw = argv[at + 1]
+  const match = /^(\d+)\/(\d+)$/.exec(raw ?? '')
+  if (!match) throw new Error('--shard expects <index>/<total>, got ' + JSON.stringify(raw))
+  const index = Number(match[1])
+  const total = Number(match[2])
+  if (total < 1) throw new Error('--shard total must be at least 1, got ' + total)
+  if (index < 1 || index > total) throw new Error('--shard index must be between 1 and ' + total + ', got ' + index)
+  return { index, total }
+}
+
+/**
+ * The suites to run: every `*.test.mjs`, in name order, the ones named on the command line, or
+ * the index-modulo slice of that list when `--shard` is given.
+ * @param {{index: number, total: number}|undefined} partition - the shard, if any.
  * @returns {string[]} absolute suite paths.
  */
-function suites() {
-  const requested = process.argv.slice(2)
+function suites(partition) {
+  const argv = process.argv.slice(2)
+  const requested = partition ? [] : argv.filter((argument) => argument !== '--shard')
   const all = readdirSync(testDir)
     .filter((name) => name.endsWith('.test.mjs'))
     .sort()
-  const selected = requested.length === 0
-    ? all
-    : all.filter((name) => requested.some((filter) => name.includes(filter)))
+  const selected = partition
+    ? all.filter((_, position) => position % partition.total === partition.index - 1)
+    : requested.length === 0
+      ? all
+      : all.filter((name) => requested.some((filter) => name.includes(filter)))
   return selected.map((name) => path.join(testDir, name))
 }
 
 // Test homes stay isolated; only the explicitly acquired executable is shared read-only.
 const bashFixture = process.platform === 'win32'
   ? (await import('../lib/shells/pinned.js')).pinnedBashExecutable({ file: process.env.DSH_OPS_TEST_BASH, required: false }) : undefined
-const selected = suites()
+const partition = shardArgument()
+const selected = suites(partition)
 if (selected.length === 0) {
+  if (partition) {
+    console.log('dsh-ops test: shard ' + partition.index + '/' + partition.total + ' matched no suites')
+    process.exit(0)
+  }
   console.error('dsh-ops test: no suites matched')
   process.exit(1)
 }
+
+if (partition) console.log('dsh-ops test: shard ' + partition.index + '/' + partition.total + ', ' + selected.length + ' suite(s)')
 
 let failed = 0
 let skipped = 0

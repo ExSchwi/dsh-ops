@@ -1,0 +1,67 @@
+# Spike B — how small is the "minimal artifact" a shard would need, and how long does moving it
+# take? Builds the plugin + the Windows bash payload once, packs lib/ + runtime/, uploads it, then
+# downloads it in a second job (the upload/download step durations are the measurement).
+# Experiment only: `ci/316-spike-*` branches, never part of CI.
+name: spike-b minimal artifact
+on:
+  push:
+    branches: ['ci/316-spike-b']
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '3'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Set up pinned Rust
+        shell: bash
+        run: rustup toolchain install 1.97.1 --profile minimal && rustup default 1.97.1
+      - name: Reuse exact locked Rust build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: spike-b-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: spike-b-${{ runner.os }}-${{ runner.arch }}-
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Build the plugin, the worker and the IPC proxies
+        shell: bash
+        run: |
+          npm run build
+          cargo test --workspace --locked --manifest-path native/Cargo.toml
+          npm run build:ptc
+          npm run build:bash-ipc
+      - name: Pack the minimal shard artifact
+        shell: bash
+        run: |
+          tar -czf minimal-artifact.tgz lib runtime native/bash-ipc
+          node -e "const fs=require('fs');const b=fs.statSync('minimal-artifact.tgz').size;console.log('MINIMAL_ARTIFACT_BYTES='+b)"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: minimal-artifact
+          path: minimal-artifact.tgz
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+  fetch:
+    needs: build
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: minimal-artifact
+      - name: Time and size the download
+        shell: bash
+        run: |
+          node -e "const fs=require('fs');console.log('DOWNLOADED_BYTES='+fs.statSync('minimal-artifact.tgz').size)"
+          tar -tzf minimal-artifact.tgz | wc -l

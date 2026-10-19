@@ -1,0 +1,54 @@
+# Spike A — the current Windows `validate` leg, mirrored step for step, with one change:
+# `cache: npm` on setup-node (the Phase 1 idea in issue #316).
+#
+# Experiment only: it runs on `ci/316-spike-*` branches and is never part of CI.
+name: spike-a full windows leg
+on:
+  push:
+    branches: ['ci/316-spike-a']
+  workflow_dispatch:
+concurrency:
+  # One run at a time: runs 2 and 3 must be able to restore what run 1 saved, otherwise the cache
+  # measurement is meaningless.
+  group: spike-a
+  cancel-in-progress: false
+jobs:
+  full:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CARGO_BUILD_JOBS: '3'
+      DSH_OPS_SUITE_TIMEOUT_MS: '300000'
+      DSH_OPS_RETRY_TIMEOUTS: '1'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: 'npm'
+      - name: Verify runner identity
+        run: node -e "if(process.platform+'-'+process.arch!=='win32-x64')throw Error('Unexpected runner'); console.log(process.platform,process.arch)"
+      - name: Set up pinned Rust
+        shell: bash
+        run: rustup toolchain install 1.97.1 --profile minimal && rustup default 1.97.1
+      - name: Reuse exact locked Rust build cache
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            native/target
+          key: spike-a-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('native/Cargo.lock') }}
+          restore-keys: spike-a-${{ runner.os }}-${{ runner.arch }}-
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - name: The declared Windows Bash payload must be installed
+        shell: bash
+        run: node -e "const fs=require('fs'),p=require('./package.json');const v=p.optionalDependencies?.['@dsh-ops/bash-win32-x64'];if(!v)throw Error('package.json lost the pinned Bash payload');if(!fs.existsSync('node_modules/@dsh-ops/bash-win32-x64/bin/bash.exe'))throw Error('npm ci did not install @dsh-ops/bash-win32-x64@'+v)"
+      - name: Functional gate (skips, suite inventory, packed artifact)
+        shell: bash
+        run: node scripts/verify-gate.mjs --skip-install
+      - name: Verify native staged closure
+        run: node bin/native-runtime.mjs check --platform win32-x64
