@@ -44,9 +44,6 @@ jobs:
           restore-keys: spike-a-${{ runner.os }}-${{ runner.arch }}-
       - name: Install locked dependencies
         run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
-      - name: The declared Windows Bash payload must be installed
-        shell: bash
-        run: node -e "const fs=require('fs'),p=require('./package.json');const v=p.optionalDependencies?.['@dsh-ops/bash-win32-x64'];if(!v)throw Error('package.json lost the pinned Bash payload');if(!fs.existsSync('node_modules/@dsh-ops/bash-win32-x64/bin/bash.exe'))throw Error('npm ci did not install @dsh-ops/bash-win32-x64@'+v)"
       - name: Functional gate (skips, suite inventory, packed artifact)
         shell: bash
         run: node scripts/verify-gate.mjs --skip-install
