@@ -1,4 +1,4 @@
-# Native PTC enhancement — 0.3.1 Windows x64, Linux x64, Apple Silicon
+# Native PTC enhancement — 0.3.2 Windows x64, Linux x64, Apple Silicon
 
 Issues: [#3](https://github.com/T-Auto/dsh-ops/issues/3), [#8](https://github.com/T-Auto/dsh-ops/issues/8).
 The file and PTC components use an independent Rust worker. The FastCtx-backed
@@ -6,7 +6,7 @@ background component has been removed.
 
 ## Runtime-bearing installation and original DSH permission linkage
 
-0.3.1 ships native workers for `win32-x64`, `linux-x64` and `darwin-arm64`, each with a version/checksum receipt, plus the Windows Bash IPC proxies. Formal `verify:release` requires all three target pairs and validates every PE/ELF/Mach-O worker and the Windows IPC binary/source closure. Local `check --staged` verifies only local development outputs. Intel Mac and Windows/Linux ARM64 are not supported. Bash/pwsh payload packages remain Windows-only optional dependencies; POSIX uses host Bash. There is no postinstall download/build. Source builds use `npm run build:ptc`, plus `npm run build:bash-ipc` on Windows.
+0.3.2 ships native workers for `win32-x64`, `linux-x64` and `darwin-arm64`, each with a version/checksum receipt, plus the Windows Bash IPC proxies. Formal `verify:release` requires all three target pairs and validates every PE/ELF/Mach-O worker and the Windows IPC binary/source closure. Local `check --staged` verifies only local development outputs. Intel Mac and Windows/Linux ARM64 are not supported. Bash/pwsh payload packages remain Windows-only optional dependencies; POSIX uses host Bash. There is no postinstall download/build. Source builds use `npm run build:ptc`, plus `npm run build:bash-ipc` on Windows.
 
 PTC/Bash use original per-call sandboxPolicy and sandbox.confine, reporting the
 host's full/partial enforcement honestly. Read-only permits existing result pages
@@ -54,7 +54,7 @@ The `dsh-ops/ptc` bundle row is enabled by default after #170; existing explicit
 profile disablement is preserved. Its only config keys are `required`
 (default false) and an optional absolute `binaryPath`. `DSH_OPS_WORKER_BIN` can
 select a build; otherwise the component uses `runtime/<platform>-<arch>/dsh-ops-worker[.exe]` before `native/target/release`.
-Published 0.3.1 packages include the runtime bytes
+Published 0.3.2 packages include the runtime bytes
 of every supported platform; source checkouts stage them explicitly with
 `node bin/native-runtime.mjs stage --platform <target>`. There is no automatic
 compilation or download during installation.

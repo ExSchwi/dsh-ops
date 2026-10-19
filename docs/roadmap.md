@@ -10,6 +10,10 @@
 - **0.3.1** — cross-platform: Windows x64, Linux x64 and macOS Apple Silicon
   (`darwin-arm64`). See [linux-build.md](linux-build.md) and
   [macos-arm64.md](macos-arm64.md).
+- **0.3.2** — the merged #151 split: eleven native file tools (#167), the safety
+  and atomicity layer (#168), opt-in `hide-official` (#169), PTC paging and
+  discoverability (#171), platform defaults (#170), the real-machine fixes from
+  #204 (#235/#236/#237/#240) and the repository-only benchmark harness (#205).
 
 ## Next
 

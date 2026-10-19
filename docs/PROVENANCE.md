@@ -19,9 +19,9 @@ FastCtx, `vendor/fastctx/`, the background component, or the FastCtx payload
 package, they describe those releases, not this one; those files remain in the
 repository history and in the published tarballs of the versions that carried them.
 
-## 0.3.1 release scope and verification
+## 0.3.2 release scope and verification
 
-0.3.1 targets Windows x64, Linux x64 and macOS Apple Silicon (`darwin-arm64`). Intel Mac and other ARM64 targets are not supported. Exact target pairs live in `PLATFORMS` and component `targets`; npm os/cpu filters are only their coarse projection. Windows Bash/pwsh remain pinned Windows-only optional dependencies; POSIX uses host Bash. No postinstall downloader is included.
+0.3.2 targets Windows x64, Linux x64 and macOS Apple Silicon (`darwin-arm64`). Intel Mac and other ARM64 targets are not supported. Exact target pairs live in `PLATFORMS` and component `targets`; npm os/cpu filters are only their coarse projection. Windows Bash/pwsh remain pinned Windows-only optional dependencies; POSIX uses host Bash. No postinstall downloader is included.
 
 The fixed file worker implements inspect/glob/grep/replace, receives session-cwd
 paths plus authoritative DSH write policy, and rechecks the writable-root allowlist
@@ -36,12 +36,12 @@ Restricted Bash uses an installation-relative private MSYS copy: only import DLL
 names are redirected to original MIT IPC proxies, preserving the token and disk
 API paths. Original payload/proxy/source hashes are recorded and checked.
 Only the original GPL payload is an existing dependency; no modified MSYS DLL
-or complete private copy is included in the 0.3.1 tarball. Runtime modifications
+or complete private copy is included in the 0.3.2 tarball. Runtime modifications
 are identified in the local receipt; original licenses remain in the copy.
 This does not attest source-delivery closure for the historical PortableGit
 payload dependency (see the 0.2.1 historical limitation below).
 
-All three workers are staged with version/target/hash receipts. Formal release closure requires every exact target and the Windows IPC binary/source closure. Local `check --staged` is a development check, not release approval. Final verification is linked in `docs/release-0.3.1.md` and the GitHub Release; early contributor measurements are not substituted for the integrated revision. GitHub publication does not automatically publish npm.
+All three workers are staged with version/target/hash receipts. Formal release closure requires every exact target and the Windows IPC binary/source closure. Local `check --staged` is a development check, not release approval. Final verification for 0.3.1 is linked in `docs/release-0.3.1.md`; the current release's verification is the GitHub `v0.3.2` Release; early contributor measurements are not substituted for the integrated revision. GitHub publication does not automatically publish npm.
 
 ## Historical development evidence
 

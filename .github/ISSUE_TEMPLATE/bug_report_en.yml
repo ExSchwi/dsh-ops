@@ -16,7 +16,7 @@ body:
     id: dsh-ops-version
     attributes:
       label: dsh-ops version and how it was installed
-      placeholder: "e.g. 0.3.1 (GitHub release) or 0.3.0 (npm); source: registry.npmjs.org / local tarball / dsh-ops provision-shells"
+      placeholder: "e.g. 0.3.2 (GitHub release) or 0.3.0 (npm); source: registry.npmjs.org / local tarball / dsh-ops provision-shells"
     validations:
       required: true
 
