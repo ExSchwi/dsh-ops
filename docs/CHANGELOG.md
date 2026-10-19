@@ -7,6 +7,10 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+_No entries yet — this section collects changes made after 0.3.2._
+
+## [0.3.2] — 2026-10-19 — Merged #151 split: native file tools, safety layer, hide-official, PTC paging, platform defaults
+
 ### File-tool discoverability, honest grep pages and compact inspect rendering
 
 - All eleven file argument schemas render concrete types in the pinned host SDK.
