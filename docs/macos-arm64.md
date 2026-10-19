@@ -1,6 +1,6 @@
 # macOS Apple Silicon (`darwin-arm64`)
 
-0.3.1 supports Apple Silicon, not Intel Mac. Exact native targets are `win32-x64`, `linux-x64` and `darwin-arm64`; the npm `os`/`cpu` projection is not a promise that every combination works.
+0.3.2 supports Apple Silicon, not Intel Mac. Exact native targets are `win32-x64`, `linux-x64` and `darwin-arm64`; the npm `os`/`cpu` projection is not a promise that every combination works.
 
 ## Native worker and source build
 
@@ -39,4 +39,4 @@ Bash and PowerShell npm binary payloads remain **Windows-only optional dependenc
 
 ## Verification evidence
 
-The manually dispatched three-platform workflow builds and tests a native Apple Silicon worker on an actual arm64 macOS runner. Final run links and the shipped artifact digests are recorded in the GitHub v0.3.1 Release. Contributor PR #67's earlier real-session observations are useful history, not a substitute for final integrated-head validation. Desktop GUI sessions still require a normal app restart after replacing the package.
+The manually dispatched three-platform workflow builds and tests a native Apple Silicon worker on an actual arm64 macOS runner. Final run links and the shipped artifact digests are recorded in the GitHub v0.3.2 Release. Contributor PR #67's earlier real-session observations are useful history, not a substitute for final integrated-head validation. Desktop GUI sessions still require a normal app restart after replacing the package.

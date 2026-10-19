@@ -16,7 +16,7 @@ body:
     id: dsh-ops-version
     attributes:
       label: dsh-ops 版本与安装通道
-      placeholder: "例如 0.3.1（GitHub release）或 0.3.0（npm）；来源：registry.npmjs.org / 本地 tarball / dsh-ops provision-shells"
+      placeholder: "例如 0.3.2（GitHub release）或 0.3.0（npm）；来源：registry.npmjs.org / 本地 tarball / dsh-ops provision-shells"
     validations:
       required: true
 

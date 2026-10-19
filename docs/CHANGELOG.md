@@ -7,7 +7,41 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-_No entries yet — this section collects changes made after 0.3.2._
+### Payload trust
+
+Found while reviewing what runs *before* it is trusted. Independent of the workspace-preparation
+fix; see that entry for the `PSModulePath` scope note.
+
+- Never hand a spawned child the host environment implicitly. Child processes now receive an
+  **allow-list** (`lib/env.js`): paths, identity, scratch space, locale and proxy variables survive;
+  everything else is withheld. The previous shape-based deny-list (`KEY|PASSWORD|SECRET|TOKEN`) let
+  `SSH_AUTH_SOCK` (which authorises the host's SSH keys) and `DATABASE_URL` (usually carrying a
+  password) through. `probeBinary` also defaults to the scrubbed environment — it **executes** a
+  candidate that may have come from `PATH`, so handing it the full environment made the check a
+  credential-delivery mechanism.
+- Judge the cached confined-Bash runtime with one function on both the cached and the cold path, and
+  keep the two anchors that live **outside** the writable cache (the IPC proxies against the
+  in-package receipt) separate from two **in-domain consistency checks** (the patched MSYS runtime
+  and `bash.exe`, both compared against the source payload). Folding all four into the stat
+  comparison lets a tampered `opsipc.dll` through on both paths. A generation that fails
+  verification is **quarantined and rebuilt** rather than refused forever — one bad write used to
+  brick the bash tool until the host restarted — and the quarantine is bounded to two generations.
+- Isolate every teardown callback (`lib/teardown.js`): one throwing disposer no longer strands the
+  rest of a capability withdrawal or a tool unpublish, and `ptc`'s publication gate is released in a
+  `finally` instead of wedging shut.
+- Compare the native-worker candidate path with `path.resolve` + case folding rather than a path
+  **substring**, so `…\RUNTIME\…` can no longer skip receipt verification.
+- Report a `PATH`-sourced FastCtx on the success path; behaviour is unchanged (same-user, not a
+  privilege boundary).
+
+### Workspace preparation
+
+- Prepare a `workspace-write` root whose path is an **8.3 short name** instead of refusing it as a
+  junction or symlink. Windows generates a short name wherever a path component does not fit 8.3, so
+  a host whose temporary directory is one — GitHub's `windows-latest`, or any machine whose user name
+  is longer than eight characters — could not prepare any workspace under it. The check now judges
+  the path it was given, and that path's ancestors, for reparse points, rather than comparing the
+  given path with its resolved form: a short name changes one into the other with no link involved.
 
 ## [0.3.2] — 2026-10-19 — Merged #151 split: native file tools, safety layer, hide-official, PTC paging, platform defaults
 
@@ -311,6 +345,99 @@ shell and PTC components behave exactly as before.
   SDDL alias `LA`, so it failed for any other account; it now matches the current user's SID, or
   `LA` when that user is RID 500.
 
+### Read-only sidebar navigation
+
+- Add focused all/running/anomaly filters and local retained-metadata pages. Preserve unfiltered session totals, continue long diagnostics, clamp pages on resize/live settlement and release key handlers on unmount. No tools, result-page fetches, history reads or persistent preferences are added.
+
+### Aggregate sidebar anomaly alerts
+
+- Add constant-memory, explicitly all-session anomaly badges without opening the panel or changing focus. Count only accepted settlements; acknowledge notifications with focused `a` without changing tool/session facts. Keep observer and badge failures isolated and respect the host-owned panel ID.
+
+### Native sidebar source integration
+
+- Add opt-in real Rust worker → OPS file runtime → DSH AgentLoop/committed Session → admitted TUI coverage, with a scripted model and owned temporary workspace. Keep source-test registration separate from Windows release support and production PTC/confinement acceptance.
+
+### Sidebar result diagnostics
+
+- Distinguish native file/PTC business refusals, errors, previews, partial settlement and unknown effects from transport returns. Parse only bounded native JSON envelopes, retain no result bodies, and leave shell/spilled output unconfirmed. Show omitted details without fetching them and warn against blind retries after unknown effects.
+
+### Optional dsh-TUI sidebar
+
+- Add disabled-by-default `dsh-ops/tui`, with its own admission manifest and no TUI/React runtime dependency. It observes current-session tool events through a bounded store, uses the host UI kit, and releases its panel and listeners on unload. No tool, prompt, command, polling, profile write or focus change is added.
+
+### Read-only activity projection
+
+- Add an internal bounded projection of live OPS native/PTC tool events for optional UI consumers. It stores no tool arguments or result bodies, isolates sessions, and labels normal transport returns neutrally rather than claiming business success. Existing components do not enable observation or change their tools.
+
+### A host outside the matrix skips the worker-driven suites instead of crashing
+
+`lib/ptc/runtime.js` gains `tryResolveWorker()`, the non-throwing form of
+`resolveWorker()`: the support matrix is still checked in one place, and the result is
+either the resolved file or a complete reason clause. `test/permissions.test.mjs` and
+`test/ptc.test.mjs` use it to leave through `skipSuite` (exit 77) when the host cannot
+answer, where the first of them previously threw while the module was still loading and
+the second failed a load-time existence check. `DSH_OPS_REQUIRE_RUNTIME=1` turns either
+absence into a failure rather than a green run, and a supported host with the worker
+built runs every check exactly as before.
+
+### Windows verification follow-ups, and a lock-sidecar assertion
+
+A Windows x64 verification of the 0.3.1 boundary work (2026-10-16) closed most of its own
+findings in the release itself — the update lock no longer touches the target, credential
+directory names are matched case-insensitively on every host, and `sync_directory` is
+`#[cfg(unix)]`. What is still wrong here is the checklist, not the code:
+
+- **`docs/windows-verification.md` carried expectations the report disproved.** The manifest
+  count is 59, not 58 (the tree that removed the FastCtx and background components dropped two
+  checks); the PE path needs its `.exe`; the L2 hex text is space-separated; a Windows host
+  skips three suites rather than two (`linux-shell` joins the two POSIX-only ones) and reports
+  24 passed + 3 skipped out of 27, not 27 + 3 out of 30; W1e's measured code is `IO_ERROR`
+  (os error 32), not `ACCESS_DENIED`, so the expectation is the structured *shape* rather than
+  one code; and the update-lock note now describes the sidecar, which is what the code takes.
+  The note that a DSH sandbox cannot answer the checklist at all — `workspace-write` cannot
+  spawn the worker, `danger-full-access` cannot let it create its replacement — and the Windows
+  build prerequisites are recorded with it.
+- **The lock sidecar is asserted invisible.** `test/linux-args.test.mjs` plants a
+  `.dsh-ops-update-<hex>.lock` and checks that `glob`, `grep` and a directory-wide `replace`
+  never select or edit it — on every host, because the rule that keeps it out is
+  platform-independent.
+- **No product half remains.** The report's other finding was that a `.cmd` candidate was probed
+  with `CreateProcess`, which refuses a launcher script with `EINVAL`. That probe (`probeBinary`
+  in `lib/binary.js`) is gone with the background component, and the surviving `.cmd` launch
+  path, `lib/profile-install.js`, already goes through `%ComSpec%` with `/d /s /c` and
+  `windowsVerbatimArguments`. So this is a documentation change plus one test.
+
+### The ladder's POSIX worker stand-in has to be executable
+
+`test/bin.test.mjs` seeded its worker stand-in with a plain 0644 text file, on the stated grounds
+that "an explicit worker path is not provenance-checked". That holds for provenance but not for
+the execute bit: `resolveWorker` refuses a non-executable explicit `binaryPath` by mode on POSIX
+(report L12, unchanged by the refactor), and the ladder report now goes through it. The stand-in
+therefore resolved to `{resolved: false}`, which failed two expectations — `worker.resolved` and,
+through `ladderFor`'s publish rule, `levels.files`. Windows passed only because that check is
+`platform !== 'win32'`, so the gate was red on Linux and macOS alone.
+
+The two cases that assert the worker rung now seed an executable stand-in, and the report's
+refusal path gained the coverage the mistake had been hiding: on POSIX, a `binaryPath` naming a
+non-executable file must come back `resolved: false` with the resolver's own "is not executable
+(mode 0644)" reason and no file tools published.
+
+### The gate script, after review: Windows can be green, and a missing tool exits 2
+
+`scripts/verify-gate.mjs` set `DSH_OPS_REQUIRE_RUNTIME=1` on every host. `test/run.mjs` turns any
+skip into a failure under that variable, and Windows has three suites that skip by platform
+(`file-metadata`, `linux-attributes`, `linux-shell`), so the script could never be green there —
+its own allowed-skip table was unreachable. It is now set on the POSIX hosts only, and Windows
+keeps its protection through the skip set: anything skipped outside that list fails. The script
+also asserts the suite total it expects per platform (27), because a suite that stopped being
+collected is not a pass, and a tool that is not installed now exits `2` ("this host cannot answer
+the gate") instead of waiting on a `close` event that a failed `spawn` never emits.
+
+The documentation caught the same drift it exists to prevent: `docs/verify-locally.md` promised
+`61` manifest checks in two places, and `docs/windows-verification.md` still described the ladder
+as failing rather than skipping where no worker resolves, and credited the Windows numbers to a
+sandbox that cannot run the gate at all.
+
 ## [0.3.1] — 2026-10-16 — Cross-platform native tools
 
 Exact release targets: **win32-x64, linux-x64, darwin-arm64 (Apple Silicon)**. Intel Mac, Windows ARM64 and Linux ARM64 are not supported. Bash/PowerShell binary payloads remain pinned Windows-only optional dependencies. POSIX uses host Bash; PTC remains opt-in. Final build/test evidence is linked in docs/release-0.3.1.md.
@@ -424,137 +551,6 @@ The capability is taken; the duplicate component is not.
 - Hold an exclusive lock across the read-check-publish window of `ops_replace`, so concurrent replacements cannot silently lose a write: a peer now receives `REVISION_CONFLICT` rather than reporting a change it did not keep. Covered by `test/replace-concurrency.test.mjs`.
 - Bound the debris a hard kill leaves behind. The next writer of a file reclaims its own `.<name>.dsh-ops-*` leftovers, which a `SIGKILL` cannot clean up at the point they are created, and a directory `fsync` that fails after a successful rename reports `effectState: "applied"` with a `nextAction` that says not to repeat it, rather than `"none"`.
 - Refuse a native worker that exists without its execute bit, naming the path and the mode, instead of failing later as a bare `EACCES` from `spawn`. The resolver's "unavailable" error lists the candidates it tried, a missing or malformed `provenance.json` is named as an incomplete stage, and `node bin/native-runtime.mjs check` on a package missing a declared platform explains both ways forward instead of raising a raw `ENOENT`.
-
-## [Unreleased]
-
-### Read-only sidebar navigation
-
-- Add focused all/running/anomaly filters and local retained-metadata pages. Preserve unfiltered session totals, continue long diagnostics, clamp pages on resize/live settlement and release key handlers on unmount. No tools, result-page fetches, history reads or persistent preferences are added.
-
-### Aggregate sidebar anomaly alerts
-
-- Add constant-memory, explicitly all-session anomaly badges without opening the panel or changing focus. Count only accepted settlements; acknowledge notifications with focused `a` without changing tool/session facts. Keep observer and badge failures isolated and respect the host-owned panel ID.
-
-### Native sidebar source integration
-
-- Add opt-in real Rust worker → OPS file runtime → DSH AgentLoop/committed Session → admitted TUI coverage, with a scripted model and owned temporary workspace. Keep source-test registration separate from Windows release support and production PTC/confinement acceptance.
-
-### Sidebar result diagnostics
-
-- Distinguish native file/PTC business refusals, errors, previews, partial settlement and unknown effects from transport returns. Parse only bounded native JSON envelopes, retain no result bodies, and leave shell/spilled output unconfirmed. Show omitted details without fetching them and warn against blind retries after unknown effects.
-
-### Optional dsh-TUI sidebar
-
-- Add disabled-by-default `dsh-ops/tui`, with its own admission manifest and no TUI/React runtime dependency. It observes current-session tool events through a bounded store, uses the host UI kit, and releases its panel and listeners on unload. No tool, prompt, command, polling, profile write or focus change is added.
-
-### Read-only activity projection
-
-- Add an internal bounded projection of live OPS native/PTC tool events for optional UI consumers. It stores no tool arguments or result bodies, isolates sessions, and labels normal transport returns neutrally rather than claiming business success. Existing components do not enable observation or change their tools.
-
-### Payload trust
-
-Found while reviewing what runs *before* it is trusted. Independent of the workspace-preparation
-fix; see that entry for the `PSModulePath` scope note.
-
-- Never hand a spawned child the host environment implicitly. Child processes now receive an
-  **allow-list** (`lib/env.js`): paths, identity, scratch space, locale and proxy variables survive;
-  everything else is withheld. The previous shape-based deny-list (`KEY|PASSWORD|SECRET|TOKEN`) let
-  `SSH_AUTH_SOCK` (which authorises the host's SSH keys) and `DATABASE_URL` (usually carrying a
-  password) through. `probeBinary` also defaults to the scrubbed environment — it **executes** a
-  candidate that may have come from `PATH`, so handing it the full environment made the check a
-  credential-delivery mechanism.
-- Judge the cached confined-Bash runtime with one function on both the cached and the cold path, and
-  keep the two anchors that live **outside** the writable cache (the IPC proxies against the
-  in-package receipt) separate from two **in-domain consistency checks** (the patched MSYS runtime
-  and `bash.exe`, both compared against the source payload). Folding all four into the stat
-  comparison lets a tampered `opsipc.dll` through on both paths. A generation that fails
-  verification is **quarantined and rebuilt** rather than refused forever — one bad write used to
-  brick the bash tool until the host restarted — and the quarantine is bounded to two generations.
-- Isolate every teardown callback (`lib/teardown.js`): one throwing disposer no longer strands the
-  rest of a capability withdrawal or a tool unpublish, and `ptc`'s publication gate is released in a
-  `finally` instead of wedging shut.
-- Compare the native-worker candidate path with `path.resolve` + case folding rather than a path
-  **substring**, so `…\RUNTIME\…` can no longer skip receipt verification.
-- Report a `PATH`-sourced FastCtx on the success path; behaviour is unchanged (same-user, not a
-  privilege boundary).
-
-### Workspace preparation
-
-- Prepare a `workspace-write` root whose path is an **8.3 short name** instead of refusing it as a
-  junction or symlink. Windows generates a short name wherever a path component does not fit 8.3, so
-  a host whose temporary directory is one — GitHub's `windows-latest`, or any machine whose user name
-  is longer than eight characters — could not prepare any workspace under it. The check now judges
-  the path it was given, and that path's ancestors, for reparse points, rather than comparing the
-  given path with its resolved form: a short name changes one into the other with no link involved.
-
-### A host outside the matrix skips the worker-driven suites instead of crashing
-
-`lib/ptc/runtime.js` gains `tryResolveWorker()`, the non-throwing form of
-`resolveWorker()`: the support matrix is still checked in one place, and the result is
-either the resolved file or a complete reason clause. `test/permissions.test.mjs` and
-`test/ptc.test.mjs` use it to leave through `skipSuite` (exit 77) when the host cannot
-answer, where the first of them previously threw while the module was still loading and
-the second failed a load-time existence check. `DSH_OPS_REQUIRE_RUNTIME=1` turns either
-absence into a failure rather than a green run, and a supported host with the worker
-built runs every check exactly as before.
-
-### Windows verification follow-ups, and a lock-sidecar assertion
-
-A Windows x64 verification of the 0.3.1 boundary work (2026-10-16) closed most of its own
-findings in the release itself — the update lock no longer touches the target, credential
-directory names are matched case-insensitively on every host, and `sync_directory` is
-`#[cfg(unix)]`. What is still wrong here is the checklist, not the code:
-
-- **`docs/windows-verification.md` carried expectations the report disproved.** The manifest
-  count is 59, not 58 (the tree that removed the FastCtx and background components dropped two
-  checks); the PE path needs its `.exe`; the L2 hex text is space-separated; a Windows host
-  skips three suites rather than two (`linux-shell` joins the two POSIX-only ones) and reports
-  24 passed + 3 skipped out of 27, not 27 + 3 out of 30; W1e's measured code is `IO_ERROR`
-  (os error 32), not `ACCESS_DENIED`, so the expectation is the structured *shape* rather than
-  one code; and the update-lock note now describes the sidecar, which is what the code takes.
-  The note that a DSH sandbox cannot answer the checklist at all — `workspace-write` cannot
-  spawn the worker, `danger-full-access` cannot let it create its replacement — and the Windows
-  build prerequisites are recorded with it.
-- **The lock sidecar is asserted invisible.** `test/linux-args.test.mjs` plants a
-  `.dsh-ops-update-<hex>.lock` and checks that `glob`, `grep` and a directory-wide `replace`
-  never select or edit it — on every host, because the rule that keeps it out is
-  platform-independent.
-- **No product half remains.** The report's other finding was that a `.cmd` candidate was probed
-  with `CreateProcess`, which refuses a launcher script with `EINVAL`. That probe (`probeBinary`
-  in `lib/binary.js`) is gone with the background component, and the surviving `.cmd` launch
-  path, `lib/profile-install.js`, already goes through `%ComSpec%` with `/d /s /c` and
-  `windowsVerbatimArguments`. So this is a documentation change plus one test.
-
-### The ladder's POSIX worker stand-in has to be executable
-
-`test/bin.test.mjs` seeded its worker stand-in with a plain 0644 text file, on the stated grounds
-that "an explicit worker path is not provenance-checked". That holds for provenance but not for
-the execute bit: `resolveWorker` refuses a non-executable explicit `binaryPath` by mode on POSIX
-(report L12, unchanged by the refactor), and the ladder report now goes through it. The stand-in
-therefore resolved to `{resolved: false}`, which failed two expectations — `worker.resolved` and,
-through `ladderFor`'s publish rule, `levels.files`. Windows passed only because that check is
-`platform !== 'win32'`, so the gate was red on Linux and macOS alone.
-
-The two cases that assert the worker rung now seed an executable stand-in, and the report's
-refusal path gained the coverage the mistake had been hiding: on POSIX, a `binaryPath` naming a
-non-executable file must come back `resolved: false` with the resolver's own "is not executable
-(mode 0644)" reason and no file tools published.
-
-### The gate script, after review: Windows can be green, and a missing tool exits 2
-
-`scripts/verify-gate.mjs` set `DSH_OPS_REQUIRE_RUNTIME=1` on every host. `test/run.mjs` turns any
-skip into a failure under that variable, and Windows has three suites that skip by platform
-(`file-metadata`, `linux-attributes`, `linux-shell`), so the script could never be green there —
-its own allowed-skip table was unreachable. It is now set on the POSIX hosts only, and Windows
-keeps its protection through the skip set: anything skipped outside that list fails. The script
-also asserts the suite total it expects per platform (27), because a suite that stopped being
-collected is not a pass, and a tool that is not installed now exits `2` ("this host cannot answer
-the gate") instead of waiting on a `close` event that a failed `spawn` never emits.
-
-The documentation caught the same drift it exists to prevent: `docs/verify-locally.md` promised
-`61` manifest checks in two places, and `docs/windows-verification.md` still described the ladder
-as failing rather than skipping where no worker resolves, and credited the Windows numbers to a
-sandbox that cannot run the gate at all.
 
 ## [0.3.0] — 2026-10-14 — Windows x64 native tools and PTC
 
