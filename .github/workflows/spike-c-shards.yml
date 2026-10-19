@@ -45,11 +45,17 @@ jobs:
         run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
       - name: Build the plugin, the worker and the IPC proxies
         shell: bash
+        # main has no optional Bash payload yet (#307), so the fixture the IPC build needs must be
+        # acquired first. This is the same acquisition verify-gate.mjs performs on win32-x64.
         run: |
           npm run build
           cargo test --workspace --locked --manifest-path native/Cargo.toml
           npm run build:ptc
+          export DSH_HOME="$(node -e "console.log(require('fs').mkdtempSync(require('path').join(require('os').tmpdir(),'dsh-ops-bash-fixture-')))")"
+          node bin/dsh-ops.mjs bash-runtime install
+          export DSH_OPS_TEST_BASH="$(node -e "import('./lib/shells/pinned.js').then(m=>console.log(m.pinnedBashExecutable({env:process.env})))")"
           npm run build:bash-ipc
+          echo "DSH_OPS_TEST_BASH=$DSH_OPS_TEST_BASH" >> "$GITHUB_ENV"
       - name: The suite list this shard owns
         shell: bash
         run: |
