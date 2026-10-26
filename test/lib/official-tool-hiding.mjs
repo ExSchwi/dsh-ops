@@ -384,6 +384,24 @@ export async function officialToolHidingMountChecks() {
       await assert.rejects(() => assemble(ctx, agent), /assembled surface still contains hidden official tools: read/)
     } finally { await shutdown(ctx) }
   })
+  await test('a host that appends tools after assembly still verifies the visible surface', async () => {
+    const { ctx } = await bootHost()
+    try {
+      await replacements(ctx); ctx.tools.register(tool('read')); ctx.tools.register(tool('foreign'))
+      // 0.2.1 hands the waterfall a presentation and attaches the tool array
+      // afterwards; the guard must still prove the official tools are hidden.
+      ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
+        const tools = assembly.tools
+        delete assembly.tools
+        return { ...await next(), tools }
+      })
+      await mount(ctx)
+      const agent = await mint(ctx, 'presentation-payload')
+      const assembly = await assemble(ctx, agent)
+      assert.equal(assembly.tools.some(entry => entry.name === 'read'), false, 'replacement surface is published')
+      assert.equal((await execute(ctx, agent, 'foreign')).isError, false)
+    } finally { await shutdown(ctx) }
+  })
   await test('a fail-once prompt provider blocks only that assembly and recovers on the next request', async () => {
     const { ctx } = await bootHost()
     try {

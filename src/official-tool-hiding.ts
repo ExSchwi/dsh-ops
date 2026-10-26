@@ -173,8 +173,14 @@ export function apply(root: Context, raw?: unknown): void {
         if (!collapsed) throw new Error(entry.error)
         clear(entry); entry.error = undefined
       }
-      if (!Array.isArray(result?.tools)) throw block(context.scope, 'assembled tool schemas unavailable')
-      const leaked = result.tools.map(schema => schema.name).filter(hideable)
+      // DSH 0.2.1 transforms a presentation here and attaches the tool array only
+      // after the waterfall, so the payload proves nothing about the assembled
+      // surface. Ask the scope view instead: an official tool this component
+      // selected is either still resolvable there or genuinely hidden. A host
+      // that still supplies schemas keeps the stricter assembled-surface check.
+      const leaked = Array.isArray(result?.tools)
+        ? wire.filter(hideable)
+        : replaceTools.filter(tool => tools.get(tool, context.scope) !== undefined)
       if (leaked.length) throw block(context.scope, `assembled surface still contains hidden official tools: ${leaked.join(', ')}`)
       return result
     })
