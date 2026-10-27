@@ -5,7 +5,9 @@ All notable changes to this package are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.5.0] — 2026-10-27 — Preset-mode component roster
+## [Unreleased]
+
+## [0.4.2] — 2026-10-27 — Preset-mode component roster and scoped runtime fixes
 
 ### Breaking changes
 
@@ -37,7 +39,7 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   standard-mode row to the package root, so a name-qualified `dsh-ops/mode-standard` override is
   refused for manual review instead of being rewritten.
 
-## [Unreleased]
+### Improvements and fixes since 0.4.1
 
 - Add candidate-only benchmark component switches with conservative patch editing, composed-config verification and a bounded readiness turn. Archive effective switches, show them in reports, and reject comparisons across different candidate switch sets (#296).
 - 为 benchmark 增加仅作用于 candidate 的组件开关，保守编辑补丁并核验合成配置及有时限的就绪 turn；归档实际开关、在报告中展示，并拒绝不同 candidate 开关集的混配（#296）。

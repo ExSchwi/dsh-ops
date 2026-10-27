@@ -26,7 +26,7 @@ OPS 为 DSH 增加有界文件与文档工具。Native 模式返回紧凑、带�
 支持：Windows x64、Linux x64，以及 macOS 13+ 的 Apple Silicon 与 Intel（`darwin-arm64`、`darwin-x64`）。见 [macOS](docs/macos.zh.md)。
 
 > [!IMPORTANT]
-> 本分支是 **0.5.0 未发布候选**：组件 roster 改为预设模式行。下方 `@latest` 命令安装已发布版本；评估候选版本需自行构建本检出目录并打包，变更见[变更日志](docs/CHANGELOG.md)。
+> **0.4.2 将组件 ID 改为预设模式行**。升级前请备份已有 profile 覆盖并遵循[迁移清单](docs/升级与卸载.md)。GitHub Release 与 npm 分别发布；`@latest` 选择 npm 当前已发布版本。
 
 - 默认 profile 启用四个预设模式行：Standard/Cordis 发布常驻 OPS 文件工具，PTC 发布类型化 SDK，Minimal 只替换 Windows shell；discovery 行启用时其会话获得 `ops_discover_tools` 动态加载入口；`ops_bash` 由模式行在 Windows 上替换官方 pwsh。高级工具在所属 agent 的下一次供应商请求中激活。
 - PTC SDK 目录包含 18 个 API：15 个文件/文档工具，加批处理、结果引用和加载器。仅暴露配置为常驻或已选择的 API；Native 与 PTC 分别提供自己的输出形式。
@@ -36,7 +36,7 @@ OPS 为 DSH 增加有界文件与文档工具。Native 模式返回紧凑、带�
 
 OPS 只发布自身作用域内的工具与可选路由提示，不改写共享工具注册表。每次调用均检查权限与取消状态。Windows 受限 Bash 仍存在文档注明的部分约束与运行时兼容性限制。
 
-历史 token 节省说法不能证明本候选版本通过发布门禁。ops 指广义 operations（运行操作），并非运维/SRE 产品。
+历史 token 节省说法不是通用性能保证。ops 指广义 operations（运行操作），并非运维/SRE 产品。
 
 ## 安装、更新、卸载
 

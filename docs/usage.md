@@ -3,11 +3,11 @@
 The complete install, update and remove flow, plus every option of the command-line interface.
 
 Before replacing a running installation, read [Upgrade and uninstall safely](upgrading.md)
-for stopping the host, registry-policy failures and the 0.4.x-to-0.5.x migration checklist.
+for stopping the host, registry-policy failures and the migration from 0.4.1 and earlier.
 
-## 0.5.0 candidate and component defaults
+## 0.4.2 component defaults
 
-This checkout is an unreleased candidate. The bundle declares eight component rows: four enhanced
+Version `0.4.2` declares eight component rows: four enhanced
 built-in preset modes (`dsh-ops/mode-minimal`, `dsh-ops/mode-standard`, `dsh-ops/mode-ptc`,
 `dsh-ops/mode-cordis`), dynamic loading (`dsh-ops/discovery`), Compatibility mode
 (`dsh-ops/compat`), data inspection (`dsh-ops/panel`) and TUI integration (`dsh-ops/tui`).
@@ -24,7 +24,7 @@ sessions receive the dynamic-loading entry while the discovery row is enabled, a
 publishes its 18-API typed catalogue with its own configured pool and SDK loader; documents load on
 demand.
 [Configuration](configuration-reference.md) describes the built-in forms and the optional browser
-carrier. Use the [upgrade notes](upgrading.md#moving-from-04x-to-05x) for migration details.
+carrier. Use the [upgrade notes](upgrading.md) for migration details.
 
 
 ---

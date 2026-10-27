@@ -72,7 +72,9 @@ removed the dependency or payload. Verify the final profile manifest, bundle
 selection and installed package state through the official manager. Transaction
 rollback and registry persistence belong to DSH's package manager.
 
-## Moving from 0.4.x to 0.5.x
+## Moving from 0.4.1 and earlier to 0.4.2
+
+The `0.4.2` release changes saved component IDs despite retaining the 0.4 patch-version line. Back up profile overrides before applying the migration below.
 
 | Change | Action after upgrade |
 | --- | --- |

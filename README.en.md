@@ -29,9 +29,9 @@ Supported: Windows x64, Linux x64, and macOS 13+ on Apple Silicon or Intel
 (`darwin-arm64`, `darwin-x64`). See [macOS](docs/macos.md).
 
 > [!IMPORTANT]
-> This branch is the **0.5.0 candidate**, not a published release: the component roster moved to
-> preset-mode rows. Commands using `@latest` below select the published package; build and pack this
-> checkout to evaluate the candidate. See the [changelog](docs/CHANGELOG.md).
+> **0.4.2 changes the component IDs** to preset-mode rows. Back up existing profile overrides and
+> follow the [upgrade checklist](docs/upgrading.md) before updating. GitHub Release and npm are
+> separate publication channels; `@latest` selects the version currently published to npm.
 
 - The default profile enables the four preset-mode rows: Standard and Cordis publish the resident
   OPS file tools, PTC publishes its typed SDK, and Minimal replaces only the Windows shell;
@@ -60,7 +60,7 @@ OPS publishes its own scoped tools and optional routing guidance; it does not re
 tool registry. Permissions and cancellation are checked per call. Windows restricted Bash retains
 its documented partial enforcement and runtime-compatibility limits.
 
-Historical token-saving claims are not evidence that this candidate meets its release gates.
+Historical token-saving claims are not universal performance guarantees.
 The name “ops” means general operations, not an operations/SRE product.
 
 ## Install, update and uninstall
