@@ -52,6 +52,10 @@ const isPtcPresentation = (presentation: Presentation): boolean =>
 
 /** A mode row's per-Agent permission to publish the PTC surface. */
 export interface PtcGate {
+  /** Optional public-consumer routing switch; execution remains independent. */
+  guidance?: boolean
+  /** Whether advanced SDK selection is enabled. */
+  dynamic?: boolean
   /** Whether the row owns this Agent's mode. */
   allows(agent: Agent): boolean
   /** Subscribe to gate changes; the callback runs a full reconcile. */
@@ -98,7 +102,7 @@ export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allow
         return failure('POLICY_DENIED', 'The calling scope must own this API in authoritative PTC-only presentation.')
       }
       if (tool === 'load_sdk') {
-        const requested = requestedApis(args, config.allowedTools)
+        const requested = requestedApis(args, gate.dynamic === false ? [] : config.allowedTools)
         if (typeof requested === 'string') return failure('INVALID_ARGUMENT', requested)
         for (const name of requested) entry.pending.add(name)
         return { status: 'completed', tools: requested, nextTurn: true }
@@ -174,7 +178,7 @@ export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allow
             try {
               const wanted = new Set([...PTC_RESIDENT_TOOLS, ...config.alwaysLoaded, ...entry.selected])
               const definitions = [...wanted].map(tool => definition(tool, execute(agent, entry, tool)))
-              definitions.push(sdkDefinition(config.allowedTools, execute(agent, entry, 'load_sdk')))
+              if (gate.dynamic !== false) definitions.push(sdkDefinition(config.allowedTools, execute(agent, entry, 'load_sdk')))
               for (const def of definitions) { ptcDefinitions.add(def); entry.disposers.push(withToolChange([agent], () => entry.ctx!.tools.register(def))); entry.owned.set(def.name, def) }
               entry.disposers.push(releaseNative)
             } catch (error) { releaseNative(); throw error }
@@ -319,11 +323,11 @@ export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allow
         }
       } finally { mutating = false }
       void reconcile(true)
-    })
+    }, gate.allows)
     ctx.effect(() => prompt.section({ name: ownership.sectionName(PTC_SECTION), order: 3252, interpolate: false, text: context => {
       const entry = entries.get(context.scope as Agent)
-      return entry?.ptc && entry.owned.has(publicToolName('load_sdk'))
-        ? 'OPS APIs return typed Outcome values. Inspect status before data; preserve partial coverage and continuation. Use ' + publicToolName('load_sdk') + ' to request advanced APIs by raw name; they become callable on the next model step. Process results locally in run_code and return only needed summaries. References do not grant authority.' : ''
+      return gate.guidance !== false && entry?.ptc && entry.owned.size > 0
+        ? 'OPS APIs return typed Outcome values. Inspect status before data; preserve partial coverage and continuation. ' + (gate.dynamic !== false ? 'Use ' + publicToolName('load_sdk') + ' to request advanced APIs by raw name; they become callable on the next model step. ' : '') + 'Process results locally in run_code and return only needed summaries. References do not grant authority.' : ''
     } }), 'dsh-ops: progressive PTC guidance')
     ctx.effect(() => async () => {
       stopped = true; mutating = true

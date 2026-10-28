@@ -21,8 +21,10 @@ import { parseRequest, search } from './search.js'
 import { scopedReconciliation, scopeFamilies } from '../scoped-reconciliation.js'
 import { modeOf } from '../modes/detect.js'
 import { residentTools } from '../modes/plan.js'
+import { integrationFor } from '../integration/registry.js'
 import { enabledModes, onModesChange } from '../modes/registry.js'
 
+export interface DiscoveryGate { allows(agent: Agent): boolean; watch?(notify: () => void): () => void; guidance?: boolean }
 interface Entry {
   ctx?: Context
   fiber?: Fiber
@@ -40,7 +42,7 @@ const DISCOVER = publicToolName(DISCOVERY_TOOL_NAME)
 const advanced = DISCOVERABLE_TOOLS.map(publicToolName)
 export const name = 'dsh-ops-discovery'
 
-export function apply(root: Context, raw: unknown): void {
+export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allows: agent => !integrationFor(root, agent) && modeOf(root, agent) !== undefined }): void {
   const config = resolveDiscoveryConfig(raw)
   let worker: string
   try { worker = resolveWorker(config) }
@@ -69,6 +71,9 @@ export function apply(root: Context, raw: unknown): void {
     // of the mode rows. Only capabilities a running mode already publishes resident
     // are excluded from the discovery pool.
     const residentSet = (agent: Agent): ReadonlySet<string> => {
+      const integration = integrationFor(ctx, agent)
+      if (integration) return new Set(integration.files && integration.presentation === 'native'
+        ? ['inspect_local_file', 'glob', 'grep', 'read_files', 'result'].map(publicToolName) : [])
       const mode = modeOf(ctx, agent)
       // A mode row that is off publishes nothing resident, so its names stay in the
       // discovery pool even though the preset matches.
@@ -76,6 +81,7 @@ export function apply(root: Context, raw: unknown): void {
       return new Set(residentTools(mode))
     }
     const permitted = (agent: Agent, rawName?: DiscoverableName): boolean => {
+      if (!gate.allows(agent)) return false
       try {
         const policy = policyService.resolve({ session: agent.session })
         return ['read-only', 'workspace-write', 'danger-full-access'].includes(policy.mode)
@@ -96,7 +102,7 @@ export function apply(root: Context, raw: unknown): void {
     // observe arbitrary dynamic prompt providers with no registry notification.
     const native = async (agent: Agent, fresh = false, signal?: AbortSignal): Promise<boolean> => {
       const entry = entries.get(agent)
-      if (!entry) return false
+      if (!entry || !gate.allows(agent)) return false
       if (fresh) invalidate(entry)
       const current = inputs(agent), revision = entry.revision
       if (entry.presentation && same(entry.presentation.inputs, current)) return entry.presentation.native
@@ -244,6 +250,7 @@ export function apply(root: Context, raw: unknown): void {
     ctx.on('system-prompt/change', refresh)
     // A mode row toggling changes which capabilities stay resident and therefore
     // must leave the discovery pool.
+    if (gate.watch) ctx.effect(() => gate.watch!(refresh), 'dsh-ops: discovery integration observer')
     ctx.effect(() => onModesChange(ctx, refresh), 'dsh-ops: discovery mode observer')
     // Observe in-place hooks and the default asynchronous Fiber.restart().
     // Await the runtime result even though the pinned next() type says void.
@@ -278,6 +285,10 @@ export function apply(root: Context, raw: unknown): void {
       return prompt.assemble(context)
     })
     ctx.on('session/event', (session, event) => {
+      if ((event as { type: string }).type === 'agent-preset/selected') {
+        for (const entry of entries.values()) { entry.pending.clear(); entry.selected.clear(); invalidate(entry) }
+        void reconcile(); return
+      }
       if (event.type === 'step/end') {
         const affected = new Set<Agent>()
         for (const [agent, entry] of entries) if (agent.session === session && ownership?.owns(agent) && entry.pending.size) {
@@ -309,12 +320,12 @@ export function apply(root: Context, raw: unknown): void {
         }
       } finally { mutating = false }
       void reconcile()
-    })
+    }, gate.allows)
     ctx.effect(() => prompt.section({
       name: ownership.sectionName('dsh-ops:discovery-tools'), order: 3253, interpolate: false,
       text: context => {
         const entry = entries.get(context.scope as Agent)
-        return entry ? renderToolingPolicy({ published: entry.owned, shellComponent: false }) : ''
+        return gate.guidance !== false && entry ? renderToolingPolicy({ published: entry.owned, shellComponent: false }) : ''
       },
     }), 'dsh-ops: discovered capability guidance')
     ctx.effect(() => async () => {
