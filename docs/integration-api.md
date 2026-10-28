@@ -58,6 +58,8 @@ Explicit keys override the selected profile; `profile` defaults to `native`. Pro
 resident read/search/pager tools independently of this advanced list. External arrays all default
 `[]`; disabled wins over allowed, and startup names must be allowed and not disabled.
 `extraGuidance` is Native-only and is rejected in PTC, rather than silently ignored.
+PTC also rejects `denyCredentialReads` overrides (its credential boundary remains enforced).
+`bashPath` and `allowSystemShellFallback` require `shell: true`.
 
 For only file tools, use `{ preset, discovery: false }`; for only Shell, use
 `{ preset, profile: 'shell' }`; for only external tools, use

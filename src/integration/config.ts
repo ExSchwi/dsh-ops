@@ -67,6 +67,8 @@ export function resolveIntegrationConfig(raw: unknown): IntegrationConfig {
   const enabled = boolean('discovery', defaults.discovery)
   const coreKeys = ['promptPolicy', 'extraGuidance', 'binaryPath', 'required', 'denyCredentialReads', 'bashPath', 'allowSystemShellFallback']
   const core = resolveConfig(Object.fromEntries(Object.entries(input).filter(([key]) => coreKeys.includes(key))))
+  if (presentation === 'ptc' && input.denyCredentialReads !== undefined) throw new ConfigError('denyCredentialReads is a Native file option; PTC always enforces its credential boundary')
+  if (!shell && (input.bashPath !== undefined || input.allowSystemShellFallback !== undefined)) throw new ConfigError('bashPath and allowSystemShellFallback require shell: true')
   if (presentation === 'ptc' && !files) throw new ConfigError('PTC requires files: true; external PTC providers are not supported')
   if (presentation === 'ptc' && input.extraGuidance !== undefined) throw new ConfigError('extraGuidance currently applies to Native routing only')
   const replaceOfficial = boolean('replaceOfficial', false)

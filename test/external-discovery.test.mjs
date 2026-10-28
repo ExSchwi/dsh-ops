@@ -31,6 +31,7 @@ await test('pure external Native discovery needs no worker, file, shell, subproc
   try {
     await registerNativeCapability(ctx, capability(async () => { ++actions; return { value: 'owned' } }))
     const a = await mint('external-a'), b = await mint('external-b'), child = await mint('external-child', 'third-party-chat', a)
+    const childOther = await mint('external-child-other', 'other-preset', a)
     const unrelated = await mint('external-other', 'other-preset')
     assert.deepEqual(names(unrelated), [])
     const first = await ctx.get('systemPrompt').assemble({ scope: a, agent: a })
@@ -40,6 +41,9 @@ await test('pure external Native discovery needs no worker, file, shell, subproc
     await commit(ctx, a)
     assert.equal(names(a).includes('acme_lookup'), true)
     assert.equal(names(b).includes('acme_lookup'), false); assert.equal(names(child).includes('acme_lookup'), false)
+    assert.equal(names(childOther).includes('acme_lookup'), false)
+    await call(ctx, child, 'ops_discover_tools', { query: 'select:acme_lookup' }); await commit(ctx, child)
+    assert.ok(names(child).includes('acme_lookup'), 'a child may independently select the same provider')
     assert.deepEqual(first.tools.map(tool => tool.name).sort(), ['ops_discover_tools', 'ops_status'])
     assert.equal((await call(ctx, a, 'acme_lookup')).value.value, 'owned'); assert.equal(actions, 1)
     const stale = ctx.get('tools').get('acme_lookup', a)
