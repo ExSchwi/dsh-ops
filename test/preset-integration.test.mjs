@@ -96,7 +96,7 @@ await test('PTC uses actual host presentation, keeps another native preset intac
     await ctx.plugin(integration({ preset: 'acme-native' }))
     const labeled = await mint('acme-ptc-label', cwd), native = await mint('acme-native', cwd)
     const first = await ctx.get('systemPrompt').assemble({ scope: labeled, agent: labeled })
-    assert.equal(names(labeled).some(name => name.startsWith('ops_')), false, 'a preset id is not PTC-only presentation')
+    assert.equal(names(labeled).some(name => name.startsWith('ops_') && name !== 'ops_status'), false, 'a preset id is not PTC-only presentation')
     assert.ok(first.tools.some(tool => tool.name === 'read'))
     const lift = labeled.ctx.tools.presentAs('ptc')
     await ctx.get('systemPrompt').assemble({ scope: labeled, agent: labeled })

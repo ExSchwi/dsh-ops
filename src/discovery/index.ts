@@ -23,6 +23,7 @@ import { parseRequest, search } from './search.js'
 import { scopedReconciliation, scopeFamilies } from '../scoped-reconciliation.js'
 import { modeOf } from '../modes/detect.js'
 import { residentTools } from '../modes/plan.js'
+import { observeSelection } from '../integration/diagnostics.js'
 import { integrationFor } from '../integration/registry.js'
 import { enabledModes, onModesChange } from '../modes/registry.js'
 
@@ -43,6 +44,7 @@ interface Entry {
   ready: Promise<void>
   revision: number
   presentation?: { inputs: unknown[]; native: boolean }
+  releaseObservation?: () => void
   releaseSelection?: () => void
 }
 const DISCOVER = publicToolName(DISCOVERY_TOOL_NAME)
@@ -153,6 +155,17 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       return nativeProviders(ctx, agent).map(provider => provider.definition.name)
         .filter(name => (foreign.has(name) || name === DISCOVER) && !entry.owned.has(name))
     }
+    ctx.on('tools/pre-execute', async (exec, next) => {
+      const agent = exec.agent
+      const definition = agent ? tools.get(exec.name, agent) : undefined
+      const provider = agent && definition ? externalPool(agent).find(row => row.capability.definition.name === exec.name) : undefined
+      if (!provider || !agent) return next()
+      const available = () => provider.active && ownership?.owns(agent) && gate.allows(agent) && externalAvailable(provider, agent)
+        && entries.get(agent)?.owned.has(exec.name) && tools.get(exec.name, agent) === definition
+      const authorized = available() && await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false)
+      if (!authorized || !available()) return { kind: 'deny', reason: 'External capability is disabled, inactive or not authorized by its provider.', info: { name: 'ProviderPolicyError', code: 'POLICY_DENIED' } }
+      return next()
+    })
     const reconcile = (targets: Iterable<Agent> = entries.keys()): Promise<void> => {
       if (stopped) return Promise.resolve()
       const families = scopeFamilies(entries.keys(), targets, scopeChainOf)
@@ -203,17 +216,21 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
             for (const provider of external) {
               const definition = provider.capability.definition
               if (tools.get(definition.name, agent)) continue
-              own(agent, entry, { ...definition, execute: async (args, exec) => {
+              const registration: ToolDefinition = { ...definition,
+                output: definition.output,
+                execute: async (args, exec) => {
                 const current = () => provider.active && externalPool(agent).includes(provider) && externalAvailable(provider, agent)
+                  && gate.allows(agent) && ownership?.owns(agent) && !stopped && entries.get(agent) === entry && exec.agent === agent
+                  && tools.get(definition.name, agent)?.output === registration.output
                   && (entry.externalSelected.has(provider.token) || gate.external?.alwaysLoaded.includes(definition.name) || provider.capability.disclosure === 'resident')
-                if (!current() || !await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false) || !current()) return failure('POLICY_DENIED', 'External provider is inactive, disabled or unauthorized.')
+                if (!current() || !await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false) || !current()) throw new Error('POLICY_DENIED: external provider is inactive, disabled or unauthorized; no action executed.')
                 const controller = new AbortController(), abort = () => controller.abort(exec.signal?.reason)
                 exec.signal?.addEventListener('abort', abort, { once: true }); if (exec.signal?.aborted) abort()
                 provider.calls.add(controller)
                 try { return await definition.execute(args, { ...exec, signal: controller.signal }) }
-                catch { return failure('EXECUTOR_UNAVAILABLE', 'External provider execution failed; inspect provider diagnostics before retrying.') }
                 finally { provider.calls.delete(controller); exec.signal?.removeEventListener('abort', abort) }
-              } })
+              } }
+              own(agent, entry, registration)
             }
           }
           // A child must not inherit its parent's activation or an old global advanced surface.
@@ -242,6 +259,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       if (changed.size) void reconcile(changed)
       const entry: Entry = { runtime: new NativeFileTools({ ctx, config: { ...config, workerPath: worker }, report: undefined }),
         selected: new Set(), pending: new Set(), externalSelected: new Set(), externalPending: new Set(), disposers: [], owned: new Set(), ready: Promise.resolve(), revision: 0 }
+      entry.releaseObservation = observeSelection(ctx, agent, entry.externalPending)
       entries.set(agent, entry); ownership?.track(agent)
       entry.fiber = agent.ctx.plugin({ inject: ['tools'], apply(scoped) { entry.ctx = scoped } })
       entry.ready = Promise.resolve(entry.fiber).then(async () => { await entry.runtime.start([]); await reconcile([agent]) })
@@ -265,7 +283,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       const entry = entries.get(agent)
       if (!entry) return
       const affected = scopeFamilies(entries.keys(), [agent], scopeChainOf).flatMap(family => [...family]).filter(member => member !== agent)
-      entries.delete(agent); ownership?.forget(agent); mutating = true
+      entries.delete(agent); entry.releaseObservation?.(); ownership?.forget(agent); mutating = true
       try { clear(entry); entry.releaseSelection?.() } finally { mutating = false }
       await entry.runtime.stop(); await entry.fiber?.dispose(); await reconcile(affected)
     })
@@ -383,7 +401,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
     ctx.effect(() => async () => {
       stopped = true; mutating = true
       const cancelled = work.stop()
-      for (const entry of entries.values()) { clear(entry); entry.releaseSelection?.() }
+      for (const entry of entries.values()) { clear(entry); entry.releaseSelection?.(); entry.releaseObservation?.() }
       await Promise.allSettled([...entries.values()].map(async entry => { await entry.runtime.stop(); await entry.fiber?.dispose() }))
       entries.clear(); ownership?.dispose(); await cancelled
     }, 'dsh-ops: discovery lifecycle')

@@ -12,7 +12,10 @@ import { OFFICIAL_REPLACEMENTS } from '../official-tool-catalog.js'
 import { BASH_TOOL } from '../policy.js'
 import { compatibilityOn } from '../modes/registry.js'
 import { resolveIntegrationConfig, type IntegrationOptions } from './config.js'
+import { mountDiagnostics } from './diagnostics.js'
 import { joinIntegration } from './registry.js'
+export { diagnose } from './diagnostics.js'
+export type { Diagnostic } from './diagnostics.js'
 export { registerNativeCapability } from '../discovery/providers.js'
 export type { NativeCapability } from '../discovery/providers.js'
 export { resolveIntegrationConfig } from './config.js'
@@ -23,6 +26,7 @@ export async function apply(ctx: Context, raw: unknown): Promise<void> {
   const binding = await joinIntegration(ctx, config)
   ctx.effect(() => binding.dispose, 'dsh-ops: preset integration binding')
   const gate = { allows: binding.allows, watch: binding.watch }
+  mountDiagnostics(ctx, gate)
   if (config.shell) {
     if (process.platform === 'win32') mountWorkspacePreparation(ctx)
     const shells = resolveShells(config.core)
