@@ -14,7 +14,8 @@ export default integration({ preset: 'acme-chat' })
 ```
 
 The default publishes the resident Native file surface and an `ops_discover_tools` entry for
-that exact preset. It does not replace official tools, publish Bash, or affect any other preset.
+that exact preset. It does not replace official tools or publish Bash. Sibling preset compositions
+remain unchanged; the parent-child boundary below still applies.
 Selection activates only reviewed OPS capabilities and takes effect on the next model step.
 
 ## Detailed configuration
@@ -83,8 +84,14 @@ PTC provider/SDK registration contract; Native provider integration must not be 
 
 ## Lifecycle and ownership
 
-The binding is scoped to the mounting composition and exact preset id. Sibling scopes and unrelated
-preset ids remain unchanged. A second binding for the same id and scope is rejected. Dispose the
+The binding is scoped to the mounting composition and exact preset id. Sibling compositions remain
+unchanged. Mount at the preset composition scope and do not place unrelated preset compositions
+beneath it: the host inherits ancestor registrations and restrictions, even across preset ids. An
+unrelated child can see unusable inherited OPS definitions, and an ancestor replacement mask can
+hide inherited official tools there. A child `allow` cannot lift an ancestor `deny`; child-own tool
+registrations are exempt from those masks. OPS execution checks reject another preset's inherited
+callbacks, but do not provide schema isolation across this unsupported nesting boundary.
+A second binding for the same id and scope is rejected. Dispose the
 returned Cordis fiber to withdraw tools, prompt sections, replacements, pending activation and old
 callbacks. OPS checks binding, scope, presentation and current host authority at execution time; the
 provider remains responsible for its own code and authorization.

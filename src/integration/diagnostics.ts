@@ -6,6 +6,7 @@ import { resolveWorker } from '../file/worker.js'
 import { resolveShells } from '../shells.js'
 import { providers } from '../discovery/providers.js'
 import { integrationFor } from './registry.js'
+import { nativeProviders } from '../file/result-provider.js'
 import { publicToolName } from '../policy.js'
 import { ownScopes } from '../scoped-ownership.js'
 import type { PublicationGate } from '../publication/types.js'
@@ -18,12 +19,12 @@ export interface Diagnostic {
   issues: { code: string; message: string }[]
   external: { name: string; state: 'disabled' | 'unavailable' | 'active' | 'pending' | 'available' }[]
 }
-const observers = new WeakMap<object, Map<Agent, { pending: ReadonlySet<string>; active: boolean }>>()
-export function observeSelection(ctx: Context, agent: Agent, pending: ReadonlySet<string>, active = true): () => void {
+const observers = new WeakMap<object, Map<Agent, { pending: ReadonlySet<string> }>>()
+export function observeSelection(ctx: Context, agent: Agent, pending: ReadonlySet<string>): () => void {
   const key = ctx.root ?? ctx
   let state = observers.get(key)
   if (!state) { state = new Map(); observers.set(key, state) }
-  const row = { pending, active }; state.set(agent, row)
+  const row = { pending }; state.set(agent, row)
   return () => { if (state.get(agent) === row) state.delete(agent) }
 }
 export async function diagnose(ctx: Context, agent: Agent): Promise<Diagnostic> {
@@ -35,11 +36,13 @@ export async function diagnose(ctx: Context, agent: Agent): Promise<Diagnostic> 
   const issue = (code: string, message: string) => { if (!issues.some(row => row.code === code)) issues.push({ code, message }) }
   if (selected) {
     for (const service of ['tools', 'systemPrompt']) if (!ctx.get(service as 'tools')) issue('HOST_SERVICE_UNAVAILABLE', `Required host service ${service} is unavailable; enable it and reload the component.`)
-    if (config?.files || !config && mode && enabledModes(ctx).has(mode) && mode !== 'minimal') {
+    const builtins = Boolean(config ? config.files || config.presentation === 'native' && (config.native.allowedTools.length || config.native.alwaysLoaded.length)
+      : mode && enabledModes(ctx).has(mode) && mode !== 'minimal')
+    if (builtins) {
       try { resolveWorker(config?.core ?? enabledModes(ctx).get(mode!)!) }
       catch { issue('RUNTIME_UNAVAILABLE', 'Native worker resolution failed. Check binaryPath and the packaged runtime; official alternatives remain available.') }
     }
-    if (config?.files) for (const service of ['sandboxPolicy', 'subprocess']) if (!ctx.get(service as 'tools')) issue('HOST_SERVICE_UNAVAILABLE', `Built-in file service ${service} is unavailable; enable it and reload.`)
+    if (builtins || config?.shell) for (const service of ['sandboxPolicy', 'subprocess']) if (!ctx.get(service as 'tools')) issue('HOST_SERVICE_UNAVAILABLE', `Execution service ${service} is unavailable; enable it and reload.`)
     if (config?.shell) {
       const shell = resolveShells(config.core)
       if (!shell.bash.available) issue('SHELL_UNAVAILABLE', 'Bash is unavailable. Check bashPath or provision the managed Bash payload.')
@@ -51,17 +54,27 @@ export async function diagnose(ctx: Context, agent: Agent): Promise<Diagnostic> 
       if (config.presentation === 'ptc' && (!ptc || !ctx.get('ptcRuntime'))) issue('PRESENTATION_MISMATCH', 'PTC requires an available runtime and authoritative run_code-only presentation; a preset name or recommendation is insufficient.')
       if (config.presentation === 'native' && ptc) issue('PRESENTATION_MISMATCH', 'Native tools are withdrawn in PTC-only presentation. Choose the typed PTC integration or restore Native/both presentation.')
     } catch { issue('PRESENTATION_UNAVAILABLE', 'The host could not assemble this scope. Check the host presentation/runtime configuration.') }
-    if (config?.files && !names.some(name => config.presentation === 'ptc' ? name === 'ops_inspect_local_file' : name === 'ops_read_files') && !issues.length) issue('PUBLICATION_UNAVAILABLE', 'Configured file tools are not visible in this scope. Check component lifecycle and host registration errors; this is not proof of permission denial.')
+    if (config) {
+      const expected = [
+        ...(config.files ? [config.presentation === 'ptc' ? 'inspect_local_file' : 'read_files'] : []),
+        ...(config.shell ? ['bash'] : []),
+        ...(config.presentation === 'native' && config.native.enabled ? ['discover_tools'] : []),
+        ...(config.presentation === 'native' ? config.native.alwaysLoaded : []),
+      ].map(publicToolName)
+      const missing = expected.filter(name => !names.includes(name))
+      if (missing.length) issue('PUBLICATION_UNAVAILABLE', `Configured tools are not visible in this scope: ${missing.join(', ')}. Check component lifecycle and host registration errors; this is not proof of permission denial.`)
+    }
   }
   // Readiness is evaluated from the current visible surface, never binary presence alone.
   const observation = observers.get(ctx.root ?? ctx)?.get(agent)
   const pool = providers(ctx, agent)
+  const published = nativeProviders(ctx, agent)
   const external: Diagnostic['external'] = (config?.externalTools ?? []).map(name => {
     const provider = pool.find(row => row.capability.definition.name === name)
     let available = false
     try { available = Boolean(provider?.active && provider.capability.available?.(agent) !== false) } catch { /* unavailable */ }
     return { name, state: config!.externalDisabled.includes(name) ? 'disabled' : !provider || !available ? 'unavailable'
-      : names.includes(name) ? 'active' : observation?.pending.has(provider.token) ? 'pending' : 'available' }
+      : published.some(source => source.scope === agent && source.definition.name === name && source.definition.output === provider.capability.definition.output) ? 'active' : observation?.pending.has(provider.token) ? 'pending' : 'available' }
   })
   return { preset: presetOf(ctx, agent), state: !selected ? 'not-selected' : issues.length ? 'degraded' : 'ready',
     tools: [...names].sort(), issues, external }

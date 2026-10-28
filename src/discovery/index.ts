@@ -155,17 +155,6 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       return nativeProviders(ctx, agent).map(provider => provider.definition.name)
         .filter(name => (foreign.has(name) || name === DISCOVER) && !entry.owned.has(name))
     }
-    ctx.on('tools/pre-execute', async (exec, next) => {
-      const agent = exec.agent
-      const definition = agent ? tools.get(exec.name, agent) : undefined
-      const provider = agent && definition ? externalPool(agent).find(row => row.capability.definition.name === exec.name) : undefined
-      if (!provider || !agent) return next()
-      const available = () => provider.active && ownership?.owns(agent) && gate.allows(agent) && externalAvailable(provider, agent)
-        && entries.get(agent)?.owned.has(exec.name) && tools.get(exec.name, agent) === definition
-      const authorized = available() && await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false)
-      if (!authorized || !available()) return { kind: 'deny', reason: 'External capability is disabled, inactive or not authorized by its provider.', info: { name: 'ProviderPolicyError', code: 'POLICY_DENIED' } }
-      return next()
-    })
     const reconcile = (targets: Iterable<Agent> = entries.keys()): Promise<void> => {
       if (stopped) return Promise.resolve()
       const families = scopeFamilies(entries.keys(), targets, scopeChainOf)
@@ -360,8 +349,11 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
     })
     ctx.on('session/event', (session, event) => {
       if ((event as { type: string }).type === 'agent-preset/selected') {
-        for (const entry of entries.values()) { entry.pending.clear(); entry.selected.clear(); entry.externalSelected.clear(); entry.externalPending.clear(); invalidate(entry) }
-        void reconcile(); return
+        const affected = new Set<Agent>()
+        for (const [agent, entry] of entries) if (agent.session === session) {
+          entry.pending.clear(); entry.selected.clear(); entry.externalSelected.clear(); entry.externalPending.clear(); invalidate(entry); affected.add(agent)
+        }
+        void reconcile(affected); return
       }
       if (event.type === 'step/end') {
         const affected = new Set<Agent>()

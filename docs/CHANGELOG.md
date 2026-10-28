@@ -5,6 +5,17 @@ All notable changes to this package are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Withdraw PTC publication and cancel calls when a session leaves its selected preset; keep other
+  sessions' discovery selections intact and authorize external calls only in their owned wrapper.
+- Diagnose the selected discovery/shell services and scoped publication; clarify the host's
+  ancestor-registration/restriction limit for nested unrelated preset integrations.
+- 切换离开已接入预设时撤回 PTC 发布并取消调用；保留其他会话的发现选择，外部调用仅在自有包装内授权一次。
+- 诊断所选发现/Shell 的服务与作用域发布，并说明无关预设嵌套时宿主继承祖先注册/限制的边界。
+
 ## [0.5.0] — 2026-10-27 — Preset-mode component roster
 
 ### Breaking changes
