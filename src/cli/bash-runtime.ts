@@ -4,6 +4,7 @@ import { readRowConfig } from './report.js'
 import { resolveConfig } from '../config.js'
 import { resolveShells } from '../shells.js'
 import { gitBashCandidates, managedBashInventory, removeManagedBash, selectBashRuntime } from '../shells/manager.js'
+import { bashIpcReport } from '../bash-ipc.js'
 
 interface BashRuntimeCommandOptions { force?: boolean; dryRun?: boolean; yes?: boolean; configFile?: string }
 
@@ -12,8 +13,13 @@ export function commandBashRuntime(action = 'status', options: BashRuntimeComman
   if (action === 'install') return commandProvisionShells({ kinds: ['bash'], force: options.force ?? false, dryRun: options.dryRun ?? false, pinFile: undefined })
   if (action === 'remove') result = removeManagedBash(options)
   else if (action === 'git' || action === 'managed') result = selectBashRuntime(action)
-  else if (action === 'status') result = { selected: resolveShells(resolveConfig(readRowConfig(options.configFile))).bash,
-    managed: managedBashInventory(), git: gitBashCandidates() }
+  else if (action === 'status') {
+    const shells = resolveShells(resolveConfig(readRowConfig(options.configFile)))
+    result = { selected: shells.bash, managed: managedBashInventory(), git: gitBashCandidates(),
+      // The private Windows runtime is the one piece of state that used to grow silently on every
+      // upgrade; report it beside the shell it belongs to (#466).
+      bashIpc: bashIpcReport(shells.bash.available ? shells.bash.file : undefined) }
+  }
   else throw new Error('Expected bash-runtime status, install, remove, git or managed.')
   console.log(JSON.stringify(result, null, 2))
   if (action === 'git' || action === 'managed') console.log('Apply the config object to the matching dsh-ops mode row with the host config editor, then reload the component. No profile was changed.')

@@ -97,6 +97,8 @@ dsh-ops bash-runtime remove --yes      # remove receipt-marked managed versions
 
 `git` and `managed` print an absolute `bashPath` configuration for the host config editor; they do not edit a profile or PATH. Reload the mode row after applying the selection or installing/removing its runtime. Stop running Bash jobs before removal. Removal refuses links in the managed path and preserves unmarked versions, system Git and PowerShell. `install` reuses the pinned download and checksum checks from `provision-shells --bash`; `--dry-run` makes no download or change. Windows restricted modes still require the pinned MSYS IPC compatibility match. A different Git Bash remains a full-access choice; approval never repairs an incompatible restricted runtime. Linux/macOS continue using host Bash.
 
+Windows confined calls stage a private MSYS tree under `<DSH_HOME>/dsh-ops/bash-ipc`. That cache is content-addressed: one generation per verified payload, shared by every profile on the machine, plus one retained predecessor for a process that is still running the previous version. The first confined Bash call after an upgrade adopts a matching older generation instead of copying the payload again, then reclaims generations beyond that bound; a generation still in use is kept. `bash-runtime status` and `ladder` report the cache (`bashIpc` in `--json`) with its total and reclaimable bytes. With no confined shell running, deleting the directory is safe — the next call stages it again.
+
 ### One-command npm installation
 
 ```console

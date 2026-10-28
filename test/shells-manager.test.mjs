@@ -82,6 +82,34 @@ await test('the real CLI previews removal and applies it only with yes', async (
   })
 })
 
+await test('bash-runtime status reports the private runtime cache without writing to it', async () => {
+  await withTempDir('manager-status', (home) => {
+    const cache = path.join(home, 'dsh-ops', 'bash-ipc')
+    const current = 'a'.repeat(24), older = 'b'.repeat(24)
+    for (const [name, size] of [[current, 7], [older, 11]]) {
+      fs.mkdirSync(path.join(cache, name), { recursive: true })
+      fs.writeFileSync(path.join(cache, name, 'payload.bin'), Buffer.alloc(size))
+      const when = new Date(Date.UTC(2026, 0, 2))
+      fs.utimesSync(path.join(cache, name), when, when)
+    }
+    const bash = path.join(home, 'bash-stub')
+    fs.writeFileSync(bash, 'stub')
+    const config = path.join(home, 'config.json')
+    fs.writeFileSync(config, JSON.stringify({ bashPath: bash, allowSystemShellFallback: false }))
+    const run = spawnSync(process.execPath, [path.join(PACKAGE_ROOT, 'bin/dsh-ops.mjs'), 'bash-runtime', 'status', '--config', config],
+      { encoding: 'utf8', env: { ...process.env, DSH_HOME: home } })
+    assert.equal(run.status, 0, run.stderr)
+    const parsed = JSON.parse(run.stdout)
+    assert.equal(parsed.bashIpc.root, cache)
+    assert.equal(parsed.bashIpc.generations, 2)
+    assert.equal(parsed.bashIpc.totalBytes, 18)
+    // The stub bash cannot name the content identity, so the newest generation is the one kept.
+    assert.equal(parsed.bashIpc.reclaimableBytes, 11)
+    assert.deepEqual(parsed.bashIpc.entries.map((entry) => entry.name), [current, older])
+    assert.equal(fs.readFileSync(path.join(cache, current, 'payload.bin')).length, 7, 'status never writes')
+  })
+})
+
 await test('the Windows Bash payload is a declared, locked and assembled optional dependency', async () => {
   const manifest = JSON.parse(fs.readFileSync(path.join(PACKAGE_ROOT, 'package.json'), 'utf8'))
   const lock = JSON.parse(fs.readFileSync(path.join(PACKAGE_ROOT, 'package-lock.json'), 'utf8'))
