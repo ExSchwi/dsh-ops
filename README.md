@@ -115,6 +115,30 @@ npx --yes dsh-ops@latest uninstall --profile desktop
 
 独立的 Windows bash 载荷包（npm 可选依赖 `@dsh-ops/bash-win32-x64`）另按上游组件许可证分发：Git for Windows 包含 GPL-2.0 等许可组件，其原始许可证、声明及来源记录随载荷保留；PowerShell 由宿主管理，按其 MIT 与第三方组件许可分发。插件的 MIT 许可不替代这些许可。详见 [PROVENANCE.md](docs/PROVENANCE.md)。
 
+## 联动！
+
+dsh-ops和很多优质的项目互相之间有联动，如果你觉得帮到了你的话，记得给大家star哦~
+
+### 相关dsh插件
+
+dsh-ops与以下dsh插件存在双向之间的代码联动，同时安装并启动后有额外的联动功能
+
+| 插件                                                         | Stars | 介绍                                                         | 联动项                             |
+| ------------------------------------------------------------ | ------ | ------------------------------------------------------------ | ---------------------------------- |
+| [dsh-TUI](https://github.com/ccch1mneyyy/dsh-TUI)            | 6k⭐    | DSH 社区内首个被官方推荐的插件！为DSH补上了缺失的TUI，高性能低占用，界面顶级，交互流畅 | 同时开启后在dsh-tui中可显示ops侧栏 |
+| [DeepSeek-Balance-Whale-Widget](https://github.com/MeteorNOX/DeepSeek-Balance-Whale-Widget) | 6k⭐    | 可以随时看余额的可爱小鲸鱼！几乎登上所有榜单的DSH必装插件之一！ | 暂时保密~                          |
+| ...                                                          |        | ...                                                          | ...                                |
+
+### 相关项目
+
+dsh-ops与以下项目有协作关系
+
+| 项目                                                         | Stars | 介绍                                             | 协作内容                               |
+| ------------------------------------------------------------ | ------ | ------------------------------------------------ | -------------------------------------- |
+| [dsh-tauri](https://github.com/dsh-tauri/deepseek-harness-desktop) | 3k   ⭐    | 稳定，安全且非常有技术品味的tauri版本dsh客户端！ | dsh-tauri内置了dsh-ops并联合调优       |
+| [niubash](https://github.com/unixwin/niubash)                | 300⭐   | 比Git bash更轻量，更高性能的 Bash For Windows    | dsh-ops使用niubash的bash实现并联合调优 |
+| ...                                                          |        | ...                                              | ...                                    |
+
 ## 致谢
 
 早期版本（`0.3.2` 之前）曾内置并分发 [yc-duan](https://github.com/yc-duan) 的 Codex 插件 FastCtx，并使用其源代码提供 Rust 工具面。FastCtx 源码随后台组件一并移除，当前 `native/` 的 Rust 核心为 dsh-ops 原创的 MIT 代码；FastCtx 的许可文本与需要转载的声明仍保留在 `licenses/fastctx/` 与 [NOTICE](NOTICE) 中，作为对历史版本的归属：
