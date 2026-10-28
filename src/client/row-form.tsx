@@ -29,6 +29,8 @@ export function RowForm(props: SettingsProps & { Switch: SwitchBinding; pwsh7Ins
   const draft = editor.draft, gates = bundleGates(draft)
   // The companion linkage locks every host-PowerShell hide switch to off.
   const pwsh7Link = draft['other.pwsh7Link'] === true
+  // Detection would turn this on; an explicit off is worth naming so it is not read as a bug.
+  const explicitOff = pwsh7Installed === true && draft['other.pwsh7Link'] === false
   const set = (flat: string, value: boolean) => editor.edit({ ...draft, [flat]: value })
   return <form className="ops-settings" onSubmit={event => { event.preventDefault(); void editor.save(changedFields(draft, editor.baseline)) }}>
     {GROUPS.map(group => {
@@ -53,6 +55,7 @@ export function RowForm(props: SettingsProps & { Switch: SwitchBinding; pwsh7Ins
           {group.toggle && <Switch checked={enabled} label={t(group.label)} disabled={editor.busy}
             onChange={(checked: boolean) => set(`${group.id}.enabled`, checked)} />}
         </div>
+        {group.id === 'other' && explicitOff && <p className="ops-field-hint">{t('pwsh7ExplicitOffHint')}</p>}
         {showBody && <div className="ops-card-body">
           {group.fields.map(spec => {
             const locked = pwsh7Link && spec.path[1] === 'hidePwsh'

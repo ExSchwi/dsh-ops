@@ -150,7 +150,10 @@ function otherState(value: unknown): FeatureState<{ pwsh7Link: boolean }> {
   const raw = object('other', value)
   // `enabled` may arrive from the validated shape; this section has no enable switch.
   for (const key of Object.keys(raw)) if (key !== 'pwsh7Link' && key !== 'enabled') throw new ConfigError(`unknown other key ${JSON.stringify(key)}`)
-  return { enabled: false, config: { pwsh7Link: flag(raw, 'pwsh7Link', false) }, raw: { pwsh7Link: flag(raw, 'pwsh7Link', false) } }
+  // Absent keeps detection in charge; only a saved boolean counts as an explicit choice.
+  const saved = raw.pwsh7Link
+  return { enabled: false, config: { pwsh7Link: typeof saved === 'boolean' ? saved : false },
+    raw: typeof saved === 'boolean' ? { pwsh7Link: saved } : {} }
 }
 
 function tuiState(value: unknown): FeatureState<ActivityConfig> {

@@ -28,7 +28,9 @@ credential fence) stays YAML-only so the page cannot grow into a second settings
   control keeps its saved value but is disabled.
 - **Other:** activity capture and the TUI link (one switch each, off by default) plus
   the `dsh-win-pwsh7 link`: while on, the host pwsh tool stays visible for that plugin to
-  point at pwsh 7, and every “Hide the host PowerShell” switch locks to off.
+  point at pwsh 7, and every “Hide the host PowerShell” switch locks to off. Until a value is
+  saved it follows detection — installing the plugin turns it on by default, and a saved
+  value (off or on) is never overridden by detection.
 
 With "Hide the host PowerShell" off the host shell stays visible; when
 `dsh-win-pwsh7` is installed it replaces PowerShell 5.1 with PowerShell 7 instead,
@@ -46,10 +48,10 @@ order 50), only on this package's own page or the `dsh-ops` row page. It keeps a
 heading row (title, refreshed-at, check-again) and opens its shaded block with one
 sentence: ops_bash runs on the managed Bash, on the detected Git Bash, or no usable Bash
 was found. The facts below come from the host snapshot: platform, managed Bash, Git Bash,
-PowerShell 7 (with the probed version when available) and `dsh-win-pwsh7` (package
-version when installed, a clickable 未安装 otherwise). The managed Bash row carries its
+PowerShell 7 (with the probed version when available) and `dsh-win-pwsh7` (可用 with the package
+version when installed, otherwise 未检测到 plus a separate 安装 action). The managed Bash row carries its
 own action — install when absent, remove when ops owns the installation — and the
-companion row installs from its value. Both open the same plan panel (details plus
+companion row installs from that action. Both open the same plan panel (details plus
 execute/close), which carries either the host's Bash plan or the version resolved by
 `pluginManager.inspect()`. A disabled row or package renders nothing, and an unavailable
 remote shows its reason instead of a green state.

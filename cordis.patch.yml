@@ -30,7 +30,3 @@
           enabled: false
         tui:
           enabled: false
-        other:
-          # Follows detection when omitted; shipped default is off so a fresh
-          # profile without the companion plugin keeps hiding the host pwsh.
-          pwsh7Link: false

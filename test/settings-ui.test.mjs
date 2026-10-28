@@ -239,6 +239,7 @@ await test('the companion install previews the resolved version before running',
     assert.match(view.container.textContent, /2\.3\.2/)
     await click(button(view.container, en.execute))
     assert.deepEqual(calls, [['inspect', 'dsh-win-pwsh7'], ['install', 'dsh-win-pwsh7']])
+    assert.match(view.container.textContent, new RegExp(en.pwsh7Installed.slice(0, 12)))
   } finally { await view.close() }
 })
 
@@ -251,6 +252,13 @@ await test('the companion linkage locks the host-shell switches to off', async (
     assert.equal(locked.getAttribute('aria-checked'), 'false')
     assert.equal(switchIn(group(view.container, en.groupGlobal), en.swBash).disabled, false, 'other switches stay editable')
   } finally { await view.close() }
+})
+
+await test('an explicit off is named when the companion is already installed', async () => {
+  const form = { state: ready({ other: { pwsh7Link: false } }), mutate: async () => true }
+  const view = await mount(RowForm, { form, Switch: TestSwitch, pwsh7Installed: true })
+  try { assert.match(view.container.textContent, /已手动关闭|Manually turned off/) }
+  finally { await view.close() }
 })
 
 dom.window.close()
