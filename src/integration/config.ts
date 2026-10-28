@@ -21,6 +21,9 @@ export interface IntegrationOptions {
   denyCredentialReads?: boolean
   bashPath?: string
   allowSystemShellFallback?: boolean
+  externalTools?: string[]
+  externalAlwaysLoaded?: string[]
+  externalDisabled?: string[]
 }
 export interface IntegrationConfig {
   preset: string
@@ -31,10 +34,14 @@ export interface IntegrationConfig {
   replaceOfficial: boolean
   core: ResolvedConfig
   native: DiscoveryConfig
+  externalTools: string[]
+  externalAlwaysLoaded: string[]
+  externalDisabled: string[]
   ptc: PtcConfig
 }
 const keys = ['preset', 'profile', 'files', 'shell', 'presentation', 'discovery', 'allowedTools', 'alwaysLoaded',
-  'replaceOfficial', 'promptPolicy', 'extraGuidance', 'binaryPath', 'required', 'denyCredentialReads', 'bashPath', 'allowSystemShellFallback']
+  'replaceOfficial', 'promptPolicy', 'extraGuidance', 'binaryPath', 'required', 'denyCredentialReads', 'bashPath', 'allowSystemShellFallback',
+  'externalTools', 'externalAlwaysLoaded', 'externalDisabled']
 const profiles: Record<IntegrationProfile, { files: boolean; shell: boolean; presentation: 'native' | 'ptc'; discovery: boolean }> = {
   native: { files: true, shell: false, presentation: 'native', discovery: true },
   ptc: { files: true, shell: false, presentation: 'ptc', discovery: true },
@@ -71,5 +78,14 @@ export function resolveIntegrationConfig(raw: unknown): IntegrationConfig {
   }) : resolveDiscoveryConfig({ enabled: false, allowedTools: [], alwaysLoaded: [] })
   const ptc = parsePtcConfig(presentation === 'ptc' ? { allowedTools, alwaysLoaded, binaryPath: core.binaryPath, required: core.required } : {})
   if (presentation === 'ptc' && ptc.alwaysLoaded.some(tool => !ptc.allowedTools.includes(tool))) throw new ConfigError('alwaysLoaded must be in allowedTools')
-  return { preset: input.preset, files, shell, presentation, discovery: enabled, replaceOfficial, core, native, ptc }
+  const externalNames = (key: string): string[] => {
+    const value = input[key] ?? []
+    if (!Array.isArray(value) || value.some(name => typeof name !== 'string' || !/^[A-Za-z][A-Za-z0-9_.-]{0,127}$/u.test(name) || name.startsWith('ops_') || name === 'run_code')) throw new ConfigError(`${key} must contain non-reserved external tool names`)
+    return [...new Set(value as string[])]
+  }
+  const externalTools = externalNames('externalTools'), externalAlwaysLoaded = externalNames('externalAlwaysLoaded'), externalDisabled = externalNames('externalDisabled')
+  if (externalAlwaysLoaded.some(name => !externalTools.includes(name) || externalDisabled.includes(name))) throw new ConfigError('externalAlwaysLoaded must be allowed and not disabled')
+  if (presentation === 'ptc' && externalTools.length) throw new ConfigError('External Native providers cannot be exposed as typed PTC APIs')
+  return { preset: input.preset, files, shell, presentation, discovery: enabled, replaceOfficial, core, native, ptc,
+    externalTools, externalAlwaysLoaded, externalDisabled }
 }

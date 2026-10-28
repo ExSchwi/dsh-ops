@@ -13,6 +13,8 @@ import { BASH_TOOL } from '../policy.js'
 import { compatibilityOn } from '../modes/registry.js'
 import { resolveIntegrationConfig, type IntegrationOptions } from './config.js'
 import { joinIntegration } from './registry.js'
+export { registerNativeCapability } from '../discovery/providers.js'
+export type { NativeCapability } from '../discovery/providers.js'
 export { resolveIntegrationConfig } from './config.js'
 export type { IntegrationOptions, IntegrationProfile } from './config.js'
 export const name = 'dsh-ops-integration'
@@ -29,7 +31,8 @@ export async function apply(ctx: Context, raw: unknown): Promise<void> {
   if (config.presentation === 'native') {
     if (config.files) mountNative(ctx, config.core, { id: config.preset, tools: NATIVE_RESIDENT_RAW,
       section: `preset-${config.preset}`, gate })
-    if (config.native.enabled || config.native.alwaysLoaded.length) mountDiscovery(ctx, config.native, { ...gate, guidance: config.core.promptPolicy })
+    if (config.native.enabled || config.native.alwaysLoaded.length || config.externalTools.length) mountDiscovery(ctx, config.native, { ...gate, guidance: config.core.promptPolicy,
+      external: { allowed: config.externalTools, alwaysLoaded: config.externalAlwaysLoaded, disabled: config.externalDisabled } })
   } else if (config.files) mountPtc(ctx, config.ptc, { ...gate, guidance: config.core.promptPolicy, dynamic: config.discovery })
   const targets = new Map<string, string>()
   if (config.replaceOfficial) {

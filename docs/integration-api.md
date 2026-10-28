@@ -60,7 +60,9 @@ official tool available. Compatibility mode still lifts replacements without unl
 
 ## External advanced tools
 
-The current public contract covers OPS's own Native catalogue. An external plugin may use the
-published scoped host `tools.register` API and retain its own name/schema/executor, but OPS does not
-silently execute, authorize, rename, or prefix that tool. A future provider registry must define
-collision, disposal, authorization and Native/PTC projection rules before it is public.
+See [External Native provider contract](external-provider.md). Plugins register reviewed metadata,
+parameters, result schema/rendering and a mandatory authorization callback through
+`registerNativeCapability`. Presets explicitly allow names using `externalTools` (default `[]`),
+optionally select `externalAlwaysLoaded`, and deny names using `externalDisabled`. Pure external
+Native discovery needs no OPS worker, file component, Bash or subprocess service. External PTC
+SDK registration is not supported.
