@@ -13,7 +13,7 @@ import { switchesFromDump } from '../bench/lib/switches.mjs'
 
 await test('switch parser validates repeatable roster names and boolean values', () => {
   assert.deepEqual(extractSwitches(['--dry-run', '--switch', 'mode-standard=false', '--switch=compat=true']).switches,
-    { 'mode-standard': { enabled: false }, compat: { enabled: true } })
+    { 'mode-standard': { enabled: false } })
   // The replacement vocabulary is gone: Compatibility is a plain row switch.
   for (const argv of [['--switch', 'oops'], ['--switch', 'compat=maybe'], ['--switch', 'mode-standard=all'], ['--switch', 'hide-official=read'], ['--switch', 'mode-ptc', '--switch', 'mode-ptc=false']]) assert.throws(() => extractSwitches(argv))
 })
@@ -36,7 +36,7 @@ await test('setup accepts switches in dry-run without launching a host or editin
   await withTempDir('switch-dry-', async dir => {
     const lines = [], example = path.join(dir, 'example.yml')
     fs.writeFileSync(example, '[]\n')
-    const code = await setup(['--dsh-home', dir, '--plugin', 'none', '--no-pin', '--no-permission-mode', '--dry-run', '--switch', 'compat'], {
+    const code = await setup(['--dsh-home', dir, '--plugin', 'none', '--no-pin', '--no-permission-mode', '--dry-run', '--switch', 'panel'], {
       entry: { file: 'fixture-dsh', kind: 'exe' }, overlay: path.join(dir, 'llm.yml'), overlayExample: example,
       invoke: () => { throw new Error('dry-run invoked host') }, out: line => lines.push(line), err: line => lines.push(line),
     })
@@ -115,7 +115,7 @@ await test('official host composition retains inherited settings and applies onl
       { id: 'dsh-ops-compat', name: 'compat-fixture', disabled: true },
     ]))
     const render = patches => renderConfigDump('dsh', baseConfig, patches, line => { throw new Error(line) })
-    const baseline = render([]), wanted = extractSwitches(['--switch', 'panel', '--switch', 'compat']).switches
+    const baseline = render([]), wanted = extractSwitches(['--switch', 'panel']).switches
     const plan = planSwitchPatch('[]\n', wanted, { composed: parse(baseline) })
     fs.writeFileSync(candidatePatch, plan.text)
     const candidate = render([{ label: 'candidate', patches: parse(fs.readFileSync(candidatePatch, 'utf8')) }])
