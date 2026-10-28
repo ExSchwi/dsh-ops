@@ -1,11 +1,11 @@
 /** Provider-owned Native contracts. Registration alone never expands a session's tools. */
-import type { Context, Agent, ToolDefinition, ToolRunContext } from '../adapter/dsh/types.js'
+import type { Context, Agent, ToolDefinition, ToolExecution } from '../adapter/dsh/types.js'
 import { loadScopes } from '../adapter/dsh/host.js'
 export interface NativeCapability {
   definition: ToolDefinition
   search: string
   /** Provider authorization is mandatory and is rechecked immediately before execution. */
-  authorize(context: ToolRunContext): boolean | Promise<boolean>
+  authorize(context: Readonly<ToolExecution>): boolean | Promise<boolean>
   available?(agent: Agent): boolean
   disclosure?: 'resident' | 'on-demand'
 }

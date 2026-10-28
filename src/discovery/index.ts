@@ -23,11 +23,12 @@ import { parseRequest, search } from './search.js'
 import { scopedReconciliation, scopeFamilies } from '../scoped-reconciliation.js'
 import { modeOf } from '../modes/detect.js'
 import { residentTools } from '../modes/plan.js'
+import { observeSelection } from '../integration/diagnostics.js'
 import { integrationFor } from '../integration/registry.js'
 import { enabledModes, onModesChange } from '../modes/registry.js'
 
 export interface DiscoveryGate {
-  allows(agent: Agent): boolean; watch?(notify: () => void): () => void; guidance?: boolean
+  allows(agent: Agent): boolean; watch?(notify: () => void): () => void; guidance?: boolean; extraGuidance?: string
   external?: { allowed: readonly string[]; alwaysLoaded: readonly string[]; disabled: readonly string[] }
 }
 interface Entry {
@@ -43,6 +44,7 @@ interface Entry {
   ready: Promise<void>
   revision: number
   presentation?: { inputs: unknown[]; native: boolean }
+  releaseObservation?: () => void
   releaseSelection?: () => void
 }
 const DISCOVER = publicToolName(DISCOVERY_TOOL_NAME)
@@ -202,18 +204,23 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
             for (const tool of wanted) own(agent, entry, entry.runtime.definition(tool))
             for (const provider of external) {
               const definition = provider.capability.definition
-              if (tools.get(definition.name, agent)) continue
-              own(agent, entry, { ...definition, execute: async (args, exec) => {
+              const existing = tools.get(definition.name, agent)
+              if (existing && !nativeProviders(ctx, agent).some(source => source.definition === existing && !source.inheritable)) continue
+              const registration: ToolDefinition = { ...definition,
+                output: definition.output,
+                execute: async (args, exec) => {
                 const current = () => provider.active && externalPool(agent).includes(provider) && externalAvailable(provider, agent)
+                  && gate.allows(agent) && ownership?.owns(agent) && !stopped && entries.get(agent) === entry && exec.agent === agent
+                  && tools.get(definition.name, agent)?.output === registration.output
                   && (entry.externalSelected.has(provider.token) || gate.external?.alwaysLoaded.includes(definition.name) || provider.capability.disclosure === 'resident')
-                if (!current() || !await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false) || !current()) return failure('POLICY_DENIED', 'External provider is inactive, disabled or unauthorized.')
+                if (!current() || !await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false) || !current()) return failure('POLICY_DENIED', 'External provider is inactive, disabled or unauthorized; no action executed.')
                 const controller = new AbortController(), abort = () => controller.abort(exec.signal?.reason)
                 exec.signal?.addEventListener('abort', abort, { once: true }); if (exec.signal?.aborted) abort()
                 provider.calls.add(controller)
                 try { return await definition.execute(args, { ...exec, signal: controller.signal }) }
-                catch { return failure('EXECUTOR_UNAVAILABLE', 'External provider execution failed; inspect provider diagnostics before retrying.') }
                 finally { provider.calls.delete(controller); exec.signal?.removeEventListener('abort', abort) }
-              } })
+              } }
+              own(agent, entry, registration)
             }
           }
           // A child must not inherit its parent's activation or an old global advanced surface.
@@ -240,8 +247,9 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
         if (!fresh) { invalidate(prior); changed.add(other) }
       }
       if (changed.size) void reconcile(changed)
-      const entry: Entry = { runtime: new NativeFileTools({ ctx, config: { ...config, workerPath: worker }, report: undefined }),
+      const entry: Entry = { runtime: new NativeFileTools({ ctx, config: { ...config, required: Boolean(worker) && config.required, workerPath: worker }, report: undefined }),
         selected: new Set(), pending: new Set(), externalSelected: new Set(), externalPending: new Set(), disposers: [], owned: new Set(), ready: Promise.resolve(), revision: 0 }
+      entry.releaseObservation = observeSelection(ctx, agent, entry.externalPending)
       entries.set(agent, entry); ownership?.track(agent)
       entry.fiber = agent.ctx.plugin({ inject: ['tools'], apply(scoped) { entry.ctx = scoped } })
       entry.ready = Promise.resolve(entry.fiber).then(async () => { await entry.runtime.start([]); await reconcile([agent]) })
@@ -265,7 +273,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       const entry = entries.get(agent)
       if (!entry) return
       const affected = scopeFamilies(entries.keys(), [agent], scopeChainOf).flatMap(family => [...family]).filter(member => member !== agent)
-      entries.delete(agent); ownership?.forget(agent); mutating = true
+      entries.delete(agent); entry.releaseObservation?.(); ownership?.forget(agent); mutating = true
       try { clear(entry); entry.releaseSelection?.() } finally { mutating = false }
       await entry.runtime.stop(); await entry.fiber?.dispose(); await reconcile(affected)
     })
@@ -297,6 +305,11 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       for (const [agent, entry] of entries) if (scopes.some(scope => scopeChainOf(agent).includes(scope))) { invalidate(entry); affected.add(agent) }
       void reconcile(affected)
     })
+    if (externalEnabled) {
+      ctx.inject(['sandboxPolicy', 'subprocess'], inner => {
+        refresh(); inner.effect(() => () => refresh())
+      })
+    }
     ctx.on('system-prompt/change', refresh)
     // A mode row toggling changes which capabilities stay resident and therefore
     // must leave the discovery pool.
@@ -336,8 +349,11 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
     })
     ctx.on('session/event', (session, event) => {
       if ((event as { type: string }).type === 'agent-preset/selected') {
-        for (const entry of entries.values()) { entry.pending.clear(); entry.selected.clear(); entry.externalSelected.clear(); entry.externalPending.clear(); invalidate(entry) }
-        void reconcile(); return
+        const affected = new Set<Agent>()
+        for (const [agent, entry] of entries) if (agent.session === session) {
+          entry.pending.clear(); entry.selected.clear(); entry.externalSelected.clear(); entry.externalPending.clear(); invalidate(entry); affected.add(agent)
+        }
+        void reconcile(affected); return
       }
       if (event.type === 'step/end') {
         const affected = new Set<Agent>()
@@ -377,13 +393,13 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       name: ownership.sectionName('dsh-ops:discovery-tools'), order: 3253, interpolate: false,
       text: context => {
         const entry = entries.get(context.scope as Agent)
-        return gate.guidance !== false && entry ? renderToolingPolicy({ published: entry.owned, shellComponent: false }) : ''
+        return gate.guidance !== false && entry ? renderToolingPolicy({ published: entry.owned, shellComponent: false, extraGuidance: gate.extraGuidance }) : ''
       },
     }), 'dsh-ops: discovered capability guidance')
     ctx.effect(() => async () => {
       stopped = true; mutating = true
       const cancelled = work.stop()
-      for (const entry of entries.values()) { clear(entry); entry.releaseSelection?.() }
+      for (const entry of entries.values()) { clear(entry); entry.releaseSelection?.(); entry.releaseObservation?.() }
       await Promise.allSettled([...entries.values()].map(async entry => { await entry.runtime.stop(); await entry.fiber?.dispose() }))
       entries.clear(); ownership?.dispose(); await cancelled
     }, 'dsh-ops: discovery lifecycle')
