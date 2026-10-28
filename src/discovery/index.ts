@@ -257,7 +257,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
         if (!fresh) { invalidate(prior); changed.add(other) }
       }
       if (changed.size) void reconcile(changed)
-      const entry: Entry = { runtime: new NativeFileTools({ ctx, config: { ...config, workerPath: worker }, report: undefined }),
+      const entry: Entry = { runtime: new NativeFileTools({ ctx, config: { ...config, required: Boolean(worker) && config.required, workerPath: worker }, report: undefined }),
         selected: new Set(), pending: new Set(), externalSelected: new Set(), externalPending: new Set(), disposers: [], owned: new Set(), ready: Promise.resolve(), revision: 0 }
       entry.releaseObservation = observeSelection(ctx, agent, entry.externalPending)
       entries.set(agent, entry); ownership?.track(agent)
@@ -315,6 +315,11 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       for (const [agent, entry] of entries) if (scopes.some(scope => scopeChainOf(agent).includes(scope))) { invalidate(entry); affected.add(agent) }
       void reconcile(affected)
     })
+    if (externalEnabled) {
+      ctx.inject(['sandboxPolicy', 'subprocess'], inner => {
+        refresh(); inner.effect(() => () => refresh())
+      })
+    }
     ctx.on('system-prompt/change', refresh)
     // A mode row toggling changes which capabilities stay resident and therefore
     // must leave the discovery pool.
