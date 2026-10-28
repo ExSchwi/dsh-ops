@@ -42,7 +42,14 @@ export function hostPwshUpgradePlan({ platform = process.platform, env = process
     : { ...base, unavailable: 'WinGet is unavailable. Install or repair Microsoft App Installer, or use the official PowerShell installer; no installation was attempted.' }
 }
 
-/** Cached probe: the resolved pwsh's own version, or undefined when it does not answer. */
+/**
+ * Cached probe: the resolved pwsh's own version, or undefined when it does not answer.
+ *
+ * Known deviation: the host snapshot is synchronous, so this runs one bounded spawnSync
+ * (1.5s timeout, 5-minute cache) instead of an async probe. Making the runtime contract
+ * async would ripple through the client hook and its tests; the bound plus the cache keeps
+ * the blocking worst case to a single refresh.
+ */
 let cachedPwshVersion: { at: number; value: string | undefined } | undefined
 export function hostPwshVersion(options: { platform?: NodeJS.Platform; env?: NodeJS.ProcessEnv; now?: () => number } = {}): string | undefined {
   const { platform = process.platform } = options
@@ -56,7 +63,7 @@ export function hostPwshVersion(options: { platform?: NodeJS.Platform; env?: Nod
   for (const file of candidates) {
     try {
       const out = spawnSync(file, ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', '$PSVersionTable.PSVersion.ToString()'],
-        { timeout: 3000, windowsHide: true, encoding: 'utf8' })
+        { timeout: 1500, windowsHide: true, encoding: 'utf8' })
       const text = (out.stdout ?? '').trim()
       if (out.status === 0 && /^\d+(\.\d+)+$/.test(text)) { value = text; break }
     } catch { /* try the next candidate */ }
