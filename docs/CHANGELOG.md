@@ -15,6 +15,12 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   ancestor-registration/restriction limit for nested unrelated preset integrations.
 - 切换离开已接入预设时撤回 PTC 发布并取消调用；保留其他会话的发现选择，外部调用仅在自有包装内授权一次。
 - 诊断所选发现/Shell 的服务与作用域发布，并说明无关预设嵌套时宿主继承祖先注册/限制的边界。
+- Plan only the new Agent on `agent/created` instead of re-reading every live session's tool
+  view, and reconcile the Agents a `tools/change` actually reached; coalesce the passes the host
+  emits unattributed. Creating a session no longer costs O(open sessions) tool-view scans, which
+  was the visible lag when starting one with many sessions open.
+- 新建会话时只规划新 Agent，不再重读所有存活会话的工具视图；`tools/change` 只核对它实际触达的
+  Agent，宿主未标注归属的变更合并为一次处理。新建会话不再随已开会话数线性扫描工具视图。
 
 ## [0.5.0] — 2026-10-27 — Preset-mode component roster
 

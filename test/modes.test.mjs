@@ -22,6 +22,7 @@ import * as Discovery from '../lib/components/discovery/index.js'
 import { BASH_TOOL, modeSectionName, publicToolName } from '../lib/policy.js'
 import { MODE_PLANS, residentTools } from '../lib/modes/plan.js'
 import { replacementTargets } from '../lib/modes/apply.js'
+import { mountReplacements } from '../lib/publication/replacements.js'
 import { WORKER } from './lib/boundary.mjs'
 import { bootHost, shutdown, scopedToolNames } from './lib/host.mjs'
 import { assert, test, report, skipSuite, wait, waitFor, withTempDir } from './lib/harness.mjs'
@@ -124,6 +125,70 @@ await test('mode-standard publishes resident OPS tools only for its preset and h
     const foreignSections = (await assemble(other)).sections.filter(entry => entry.name.startsWith('dsh-ops:repository-tooling:mode-'))
     assert.equal(foreignSections.some(entry => String(entry.text).trim() !== ''), false, 'no mode routing text leaks to another preset')
     await standard.dispose()
+  } finally { await shutdown(ctx) }
+}))
+
+/**
+ * Creating a session must not cost work proportional to the sessions already
+ * open. The replacement controller reads one Agent's tool view per `plan`, so a
+ * full pass per creation made every new session pay O(live sessions) view copies
+ * — the regression this test pins, measured as a count rather than a duration: a
+ * count is stable on a loaded machine where a millisecond budget is not.
+ *
+ * The controller is mounted alone here. A whole mode row also publishes Native
+ * tools and follows the host's own layer changes, and those costs belong to
+ * their own controllers; this test is about the replacement pass, which is the
+ * one that scaled with the number of open sessions.
+ */
+await test('creating a session does not re-plan every live session', () => withTempDir('mode-create-cost', async cwd => {
+  const { ctx } = await bootHost()
+  await ctx.plugin(Subprocess)
+  await ctx.plugin(Sandbox, {})
+  ctx.provide('sandboxPolicy', { resolve: ({ session }) => ({ mode: session.mode, workspaceRoot: session.header.cwd, sessionId: session.id }) })
+  const live = []
+  ctx.provide('agents', { list: () => [...live] })
+  const presets = new Map()
+  ctx.provide('agentPresets', { composedPreset: scoped => presets.get(scopeParentOf(scopeOf(scoped))) })
+  const targets = replacementTargets('standard', 'win32')
+  const mounted = ctx.plugin({ name: 'fixture-replacements', apply(inner) {
+    mountReplacements(inner, { id: 'standard', targets, gate: { allows: () => true }, keepOfficial: () => false })
+  } })
+  let sequence = 0
+  /** One live session: its preset scope holds the official tools, its own scope the OPS ones. */
+  const prepare = async () => {
+    const id = 'cost-agent-' + (++sequence)
+    const presetScope = await scopedContext(ctx, { preset: `${id}-preset` })
+    presets.set(scopeOf(presetScope), 'standard')
+    for (const name of OFFICIAL) presetScope.tools.register(tool(name))
+    const agent = { id, session: { id, mode: 'danger-full-access', header: { cwd } } }
+    agent.ctx = await scopedContext(presetScope, agent, scopeOf(presetScope))
+    // A replacement is hidden only while its counterpart is visible in the same
+    // scope, so the fixture publishes the counterparts the real row would.
+    for (const counterpart of new Set(targets.values())) agent.ctx.tools.register(tool(counterpart))
+    return agent
+  }
+  try {
+    await mounted
+    const tools = ctx.get('tools')
+    const original = tools.view.bind(tools)
+    let views = 0
+    tools.view = scope => { views += 1; return original(scope) }
+    // Twelve sessions first, so what is measured is the thirteenth.
+    for (let index = 0; index < 12; index++) {
+      const agent = await prepare()
+      live.push(agent)
+      await ctx.serial('agent/created', { agent, source: 'startup' })
+    }
+    const another = await prepare()
+    live.push(another)
+    views = 0
+    await ctx.serial('agent/created', { agent: another, source: 'startup' })
+    // One view plans the new Agent. A pass over the twelve already-open sessions
+    // shows up here as thirteen, which is the regression.
+    assert.ok(views <= 2, `creating a session read ${views} tool views with twelve sessions open; it must not re-plan them`)
+    // The saving must not be a mask that was never applied.
+    await waitFor(() => OFFICIAL.filter(name => name !== 'write').every(name => !scopedToolNames(ctx, another).includes(name)), { what: 'the new session hides the replaced official tools' })
+    tools.view = original
   } finally { await shutdown(ctx) }
 }))
 
