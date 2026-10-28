@@ -39,6 +39,8 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Add explicit `dsh-ops/integration` preset opt-in with independent files, Bash, Native/PTC, discovery, replacement and guidance choices; unknown presets no longer receive the bundled discovery row implicitly. Existing headless/built-in and explicit legacy components retain their compatibility paths (#440).
+- 新增 `dsh-ops/integration` 显式预设接入，独立控制文件、Bash、Native/PTC、发现、替换和提示词；未知预设不再隐式获得 bundle 的发现行。内置/无预设 headless 与显式 legacy 组件保留兼容路径（#440）。
 - Separate scoped Native publication and replacement lifecycle from built-in preset policy; move Native rendering/read evidence to `file/native` and typed PTC projection to `ptc/projection`, without changing tool contracts or component exports (#440).
 - 将作用域内 Native 发布与替换生命周期从内置预设策略分离；Native 渲染/读取证据归入 `file/native`，类型化 PTC 投影归入 `ptc/projection`，工具契约和组件导出保持不变（#440）。
 - 收敛所有 DSH 产品类型、懒加载 scope 与 profile carrier 入口到项目自有 `adapter/dsh` 边界；保持现有 Cordis 工具注册、提示词、权限、subprocess、PTC、结果与 UI 行为不变，并将宿主兼容声明扩展至 `>=0.2.0-rc.2 <0.2.2-0`，覆盖已验证的 DSH 0.2.1-rc.4。

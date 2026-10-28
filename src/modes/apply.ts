@@ -20,6 +20,7 @@ import { mountNative } from '../publication/native.js'
 import { MODE_PLANS, NATIVE_RESIDENT_RAW, SHELL_OFFICIAL_NAMES } from './plan.js'
 import { OFFICIAL_REPLACEMENTS } from '../official-tool-catalog.js'
 import { BASH_TOOL } from '../policy.js'
+import { integrationFor } from '../integration/registry.js'
 import { joinMode, onModesChange, compatibilityOn } from './registry.js'
 import { mountReplacements } from '../publication/replacements.js'
 import type { ModeId } from './types.js'
@@ -37,7 +38,7 @@ export function applyMode(root: Context, rawConfig: unknown, mode: ModeId): void
   const plan = MODE_PLANS[mode]
   const leave = joinMode(root, mode, config)
   root.effect(() => () => leave(), `dsh-ops: ${mode} mode switch`)
-  const matches = (agent: Agent): boolean => modeOf(root, agent) === mode
+  const matches = (agent: Agent): boolean => integrationFor(root, agent) === undefined && modeOf(root, agent) === mode
   const watch = (notify: () => void): (() => void) => onModesChange(root, notify)
   // The Windows shell replacement is the only shell work a mode row performs:
   // POSIX sessions already run the host's bash, so OPS publishes nothing there.
