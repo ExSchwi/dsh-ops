@@ -39,6 +39,39 @@ integration({
 synchronously. The `shell` choice publishes `ops_bash` only where the host and authorization
 permit it. Bash is resident, not a discovery choice.
 
+## Complete option defaults and precedence
+
+Explicit keys override the selected profile; `profile` defaults to `native`. Profile defaults are:
+
+| Profile | files | shell | presentation | discovery |
+| --- | --- | --- | --- | --- |
+| native | true | false | native | true |
+| ptc | true | false | ptc | true |
+| discovery | false | false | native | true |
+| shell | false | true | native | false |
+
+`replaceOfficial` defaults false, `promptPolicy` true, `extraGuidance` empty,
+`required` false, `denyCredentialReads` true, and `allowSystemShellFallback` false.
+`binaryPath` and `bashPath` default to managed resolution and affect only the corresponding runtime.
+`allowedTools` defaults to all loadable APIs when discovery is on, otherwise `[]`;
+`alwaysLoaded` defaults `[]` and must be a subset of the allow-list. Native files publish the five
+resident read/search/pager tools independently of this advanced list. External arrays all default
+`[]`; disabled wins over allowed, and startup names must be allowed and not disabled.
+`extraGuidance` is Native-only and is rejected in PTC, rather than silently ignored.
+
+For only file tools, use `{ preset, discovery: false }`; for only Shell, use
+`{ preset, profile: 'shell' }`; for only external tools, use
+`{ preset, profile: 'discovery', allowedTools: [], externalTools: ['acme_lookup'] }`.
+No configuration changes the host's own presentation or permission policy.
+
+## Diagnostics and compatibility
+
+The integration adds `ops_status` for current scoped diagnostics; see [diagnostics](diagnostics.md).
+The bundled discovery row now serves built-in/headless compositions only. Unknown custom presets
+must explicitly opt in; this intentionally removes the previous accidental global discovery entry.
+Existing component exports remain available with their documented legacy semantics; do not use
+private `lib/*` paths as public API. Existing headless/no-preset Standard fallback remains supported.
+
 ## PTC
 
 Use `profile: 'ptc'` only when the host presents the selected preset as actual PTC (`run_code` plus

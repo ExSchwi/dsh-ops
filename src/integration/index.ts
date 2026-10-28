@@ -46,7 +46,7 @@ export async function apply(ctx: Context, raw: unknown): Promise<void> {
   if (config.presentation === 'native') {
     if (config.files) mountNative(ctx, config.core, { id: config.preset, tools: NATIVE_RESIDENT_RAW,
       section: `preset-${config.preset}`, gate })
-    if (config.native.enabled || config.native.alwaysLoaded.length || config.externalTools.length) mountDiscovery(ctx, config.native, { ...gate, guidance: config.core.promptPolicy,
+    if (config.native.enabled || config.native.alwaysLoaded.length || config.externalTools.length) mountDiscovery(ctx, config.native, { ...gate, guidance: config.core.promptPolicy, extraGuidance: config.core.extraGuidance,
       external: { allowed: config.externalTools, alwaysLoaded: config.externalAlwaysLoaded, disabled: config.externalDisabled } })
   } else if (config.files) mountPtc(ctx, config.ptc, { ...gate, guidance: config.core.promptPolicy, dynamic: config.discovery })
   const targets = new Map<string, string>()
@@ -59,6 +59,7 @@ export async function apply(ctx: Context, raw: unknown): Promise<void> {
 /** Mount inside a preset composition or with an explicit preset id at the host root. */
 export function integration(options: IntegrationOptions) {
   // Validate synchronously, before Cordis creates a fiber or any registration.
-  resolveIntegrationConfig(options)
-  return { name, apply(ctx: Context) { return apply(ctx, structuredClone(options)) } }
+  const captured = structuredClone(options)
+  resolveIntegrationConfig(captured)
+  return { name, apply(ctx: Context) { return apply(ctx, structuredClone(captured)) } }
 }

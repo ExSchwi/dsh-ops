@@ -35,7 +35,7 @@ export async function diagnose(ctx: Context, agent: Agent): Promise<Diagnostic> 
   const issue = (code: string, message: string) => { if (!issues.some(row => row.code === code)) issues.push({ code, message }) }
   if (selected) {
     for (const service of ['tools', 'systemPrompt']) if (!ctx.get(service as 'tools')) issue('HOST_SERVICE_UNAVAILABLE', `Required host service ${service} is unavailable; enable it and reload the component.`)
-    if (config?.files || mode && enabledModes(ctx).has(mode)) {
+    if (config?.files || !config && mode && enabledModes(ctx).has(mode) && mode !== 'minimal') {
       try { resolveWorker(config?.core ?? enabledModes(ctx).get(mode!)!) }
       catch { issue('RUNTIME_UNAVAILABLE', 'Native worker resolution failed. Check binaryPath and the packaged runtime; official alternatives remain available.') }
     }
@@ -53,6 +53,7 @@ export async function diagnose(ctx: Context, agent: Agent): Promise<Diagnostic> 
     } catch { issue('PRESENTATION_UNAVAILABLE', 'The host could not assemble this scope. Check the host presentation/runtime configuration.') }
     if (config?.files && !names.some(name => config.presentation === 'ptc' ? name === 'ops_inspect_local_file' : name === 'ops_read_files') && !issues.length) issue('PUBLICATION_UNAVAILABLE', 'Configured file tools are not visible in this scope. Check component lifecycle and host registration errors; this is not proof of permission denial.')
   }
+  // Readiness is evaluated from the current visible surface, never binary presence alone.
   const observation = observers.get(ctx.root ?? ctx)?.get(agent)
   const pool = providers(ctx, agent)
   const external: Diagnostic['external'] = (config?.externalTools ?? []).map(name => {

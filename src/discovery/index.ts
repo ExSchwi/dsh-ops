@@ -28,7 +28,7 @@ import { integrationFor } from '../integration/registry.js'
 import { enabledModes, onModesChange } from '../modes/registry.js'
 
 export interface DiscoveryGate {
-  allows(agent: Agent): boolean; watch?(notify: () => void): () => void; guidance?: boolean
+  allows(agent: Agent): boolean; watch?(notify: () => void): () => void; guidance?: boolean; extraGuidance?: string
   external?: { allowed: readonly string[]; alwaysLoaded: readonly string[]; disabled: readonly string[] }
 }
 interface Entry {
@@ -215,7 +215,8 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
             for (const tool of wanted) own(agent, entry, entry.runtime.definition(tool))
             for (const provider of external) {
               const definition = provider.capability.definition
-              if (tools.get(definition.name, agent)) continue
+              const existing = tools.get(definition.name, agent)
+              if (existing && !nativeProviders(ctx, agent).some(source => source.definition === existing && !source.inheritable)) continue
               const registration: ToolDefinition = { ...definition,
                 output: definition.output,
                 execute: async (args, exec) => {
@@ -223,7 +224,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
                   && gate.allows(agent) && ownership?.owns(agent) && !stopped && entries.get(agent) === entry && exec.agent === agent
                   && tools.get(definition.name, agent)?.output === registration.output
                   && (entry.externalSelected.has(provider.token) || gate.external?.alwaysLoaded.includes(definition.name) || provider.capability.disclosure === 'resident')
-                if (!current() || !await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false) || !current()) throw new Error('POLICY_DENIED: external provider is inactive, disabled or unauthorized; no action executed.')
+                if (!current() || !await Promise.resolve().then(() => provider.capability.authorize(exec)).catch(() => false) || !current()) return failure('POLICY_DENIED', 'External provider is inactive, disabled or unauthorized; no action executed.')
                 const controller = new AbortController(), abort = () => controller.abort(exec.signal?.reason)
                 exec.signal?.addEventListener('abort', abort, { once: true }); if (exec.signal?.aborted) abort()
                 provider.calls.add(controller)
@@ -400,7 +401,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       name: ownership.sectionName('dsh-ops:discovery-tools'), order: 3253, interpolate: false,
       text: context => {
         const entry = entries.get(context.scope as Agent)
-        return gate.guidance !== false && entry ? renderToolingPolicy({ published: entry.owned, shellComponent: false }) : ''
+        return gate.guidance !== false && entry ? renderToolingPolicy({ published: entry.owned, shellComponent: false, extraGuidance: gate.extraGuidance }) : ''
       },
     }), 'dsh-ops: discovered capability guidance')
     ctx.effect(() => async () => {
