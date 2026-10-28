@@ -110,7 +110,7 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
     const invalidate = (entry: Entry) => { ++entry.revision; entry.presentation = undefined }
     const inputs = (agent: Agent): unknown[] => {
       const policy = policyService?.resolve({ session: agent.session })
-      return [agent.ctx, agent.session, agent.session.header.cwd, policy?.mode, policy?.workspaceRoot, policy?.sessionId]
+      return [agent.ctx, agent.session, currentSessionDirectory(ctx, agent), policy?.mode, policy?.workspaceRoot, policy?.sessionId]
     }
     const same = (left: unknown[], right: unknown[]) => left.length === right.length && left.every((value, index) => value === right[index])
     // Only background reconciliation reuses a probe. A step or execution can
@@ -408,3 +408,4 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
     for (const agent of new Set([...(ctx.get('agents')?.list() ?? []), ...ownership.agents()])) void attach(agent)
   })
 }
+import { currentSessionDirectory } from '../adapter/dsh/working-directory.js'

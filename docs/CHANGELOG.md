@@ -9,6 +9,9 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Resolve Native file paths, Bash workdirs and default result roots through the live DSH
+  working-directory service after `working_directory` changes (#447). Keep workspace write
+  authority and stored reference roots independent; show directory provenance in file/Bash output.
 - Withdraw PTC publication and cancel calls when a session leaves its selected preset; keep other
   sessions' discovery selections intact and authorize external calls only in their owned wrapper.
 - Diagnose the selected discovery/shell services and scoped publication; clarify the host's

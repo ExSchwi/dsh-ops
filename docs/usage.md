@@ -7,6 +7,16 @@ for stopping the host, registry-policy failures and the 0.4.x-to-0.5.x migration
 
 ## 0.5.0 candidate and component defaults
 
+Native file paths (including copy/move destinations), omitted search paths and Bash's default or
+relative `workdir` follow the live `working_directory` service. Each call resolves its base once;
+`resolvedFrom` and `cwdSource` identify that base in structured and rendered file/Bash results
+(credential refusals remain path-free).
+Hosts without this service fall back to `session.header.cwd` and label that source. Service errors
+or cancellation stop the call rather than silently using an old directory. Changing cwd never
+widens `sandboxPolicy.workspaceRoot` write authority. Native `ops_result` defaults to the live cwd;
+after changing directories, pass the original returned `referenceRoot` as `root` to page or release
+an older reference. PTC's explicit/default workspace-root contract is unchanged.
+
 This checkout is an unreleased candidate. The bundle declares eight component rows: four enhanced
 built-in preset modes (`dsh-ops/mode-minimal`, `dsh-ops/mode-standard`, `dsh-ops/mode-ptc`,
 `dsh-ops/mode-cordis`), dynamic loading (`dsh-ops/discovery`), Compatibility mode
