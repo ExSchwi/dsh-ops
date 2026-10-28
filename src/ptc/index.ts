@@ -23,6 +23,7 @@ import { surfaceOf as toolSurface } from '../surface.js'
 import { onToolChange, withToolChange } from '../tool-changes.js'
 import { monitoredInvoke } from './invoke.js'
 import { scopedReconciliation, scopeFamilies } from '../scoped-reconciliation.js'
+import { retired as retiredLegacyRow } from '../settings/legacy.js'
 export { resolvePtcConfig } from '../config.js'
 export const name = 'dsh-ops-ptc'
 const apiTools = [...FILE_TOOLS, ...PTC_TOOLS]
@@ -63,6 +64,7 @@ export interface PtcGate {
 }
 
 export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allows: () => true }): void {
+  if (retiredLegacyRow(root, 'ptc')) return
   const config = resolvePtcConfig(rawConfig)
   mountWorkspacePreparation(root)
   let file: string

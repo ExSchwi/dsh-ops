@@ -15,6 +15,14 @@ import type { ModeId } from './types.js'
 export interface ModeConfig extends ResolvedConfig {
   allowedTools: PtcConfig['allowedTools']
   alwaysLoaded: PtcConfig['alwaysLoaded']
+  /** Publish Bash for this preset's sessions. */
+  bash: boolean
+  /** Hide the official Windows shell once Bash replaces it. */
+  hidePwsh: boolean
+  /** Hide the official file tools this mode replaces (gated by the bundle switch). */
+  hideOfficialTools: boolean
+  /** Publish the discovery entry to this preset's sessions (gated by the bundle switch). */
+  dynamicTools: boolean
 }
 
 /** Every key a mode row accepts: the settings each enhanced preset really reads. */
@@ -23,9 +31,12 @@ export const MODE_CONFIG_KEYS: readonly string[] = Object.freeze([
   'binaryPath', 'required', 'denyCredentialReads', 'promptPolicy', 'extraGuidance',
   'bashPath', 'publishBashTool', 'allowSystemShellFallback', 'configUpdateVersion',
   'allowedTools', 'alwaysLoaded',
+  'bash', 'hidePwsh', 'hideOfficialTools', 'dynamicTools',
 ])
 
 const PTC_KEYS = new Set(['allowedTools', 'alwaysLoaded'])
+/** The four switches the single row's page exposes; defaults are all on. */
+const SWITCH_KEYS = new Set(['bash', 'hidePwsh', 'hideOfficialTools', 'dynamicTools'])
 
 /**
  * Validate one mode row's config.
@@ -43,11 +54,21 @@ export function resolveModeConfig(rawConfig?: unknown): ModeConfig {
       throw new Error(`unknown key(s) ${JSON.stringify(key)}; accepted keys are ${MODE_CONFIG_KEYS.map(entry => JSON.stringify(entry)).join(', ')}`)
     }
   }
-  const core = Object.fromEntries(Object.entries(raw).filter(([key]) => !PTC_KEYS.has(key)))
+  const core = Object.fromEntries(Object.entries(raw).filter(([key]) => !PTC_KEYS.has(key) && !SWITCH_KEYS.has(key)))
   const ptc = Object.fromEntries(Object.entries(raw).filter(([key]) => PTC_KEYS.has(key)))
-  const resolved = resolveConfig(core)
+  const switches = Object.fromEntries(Object.entries(raw).filter(([key]) => SWITCH_KEYS.has(key)))
+  for (const [key, value] of Object.entries(switches)) {
+    if (typeof value !== 'boolean') throw new Error(`${key} must be boolean`)
+  }
+  const sw = (key: string, fallback: boolean): boolean => (typeof switches[key] === 'boolean' ? switches[key] as boolean : fallback)
+  const bash = sw('bash', typeof core.publishBashTool === 'boolean' ? core.publishBashTool : true)
+  // `bash` is this surface's name for publishing the shell tool; the legacy key
+  // keeps working for saved rows and is owned by the same resolver.
+  const resolved = resolveConfig({ ...core, publishBashTool: bash })
   const api = parsePtcConfig(ptc)
-  return { ...resolved, allowedTools: api.allowedTools, alwaysLoaded: api.alwaysLoaded }
+  return { ...resolved, allowedTools: api.allowedTools, alwaysLoaded: api.alwaysLoaded,
+    bash, hidePwsh: sw('hidePwsh', true),
+    hideOfficialTools: sw('hideOfficialTools', true), dynamicTools: sw('dynamicTools', true) }
 }
 
 /**
@@ -56,25 +77,14 @@ export function resolveModeConfig(rawConfig?: unknown): ModeConfig {
  * @returns field descriptors for the row settings form.
  */
 export function modeFields(mode: ModeId): Record<string, Field> {
-  const shared: Record<string, Field> = {
-    publishBashTool: editable('boolean', 'Publish Bash for authorized sessions.'),
-    bashPath: editable('string', 'Absolute Bash executor path. Remove the override to select the optional managed installation.'),
-  }
-  if (mode === 'minimal') return shared
-  if (mode === 'ptc') return {
-    required: editable('boolean', 'Fail startup if the native worker is unavailable.'),
-    binaryPath: editable('string', 'Optional explicit native worker path.'),
-    allowedTools: editable('array', 'PTC APIs available for SDK selection.', { type: 'string' }),
-    alwaysLoaded: editable('array', 'PTC APIs published before SDK selection.', { type: 'string' }),
-    promptPolicy: editable('boolean', 'Publish tool routing guidance.'),
-  }
+  // The maintainer's page: four switches per preset, nothing else. Every other
+  // accepted key stays YAML-only so the page cannot grow into a second settings app.
+  void mode
   return {
-    ...shared,
-    promptPolicy: editable('boolean', 'Publish tool routing guidance.'),
-    extraGuidance: editable('string', 'Additional tool routing guidance.'),
-    binaryPath: editable('string', 'Optional explicit native worker path; omit to use the packaged worker.'),
-    required: editable('boolean', 'Fail activation when the native worker is unavailable.'),
-    denyCredentialReads: editable('boolean', 'Refuse credential locations during file reads.'),
+    bash: editable('boolean', 'Publish Bash for authorized sessions.'),
+    hidePwsh: editable('boolean', 'Hide the official Windows shell once Bash replaces it.'),
+    hideOfficialTools: editable('boolean', 'Hide the official file tools this mode replaces.'),
+    dynamicTools: editable('boolean', 'Publish the discovery entry to this mode.'),
   }
 }
 

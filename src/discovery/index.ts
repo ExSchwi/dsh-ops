@@ -26,6 +26,7 @@ import { residentTools } from '../modes/plan.js'
 import { observeSelection } from '../integration/diagnostics.js'
 import { integrationFor } from '../integration/registry.js'
 import { enabledModes, onModesChange } from '../modes/registry.js'
+import { retired as retiredLegacyRow } from '../settings/legacy.js'
 
 export interface DiscoveryGate {
   allows(agent: Agent): boolean; watch?(notify: () => void): () => void; guidance?: boolean; extraGuidance?: string
@@ -52,6 +53,7 @@ const advanced = DISCOVERABLE_TOOLS.map(publicToolName)
 export const name = 'dsh-ops-discovery'
 
 export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allows: agent => !integrationFor(root, agent) && modeOf(root, agent) !== undefined }): void {
+  if (retiredLegacyRow(root, 'discovery')) return
   const config = resolveDiscoveryConfig(raw)
   let worker: string | undefined
   const externalEnabled = Boolean(gate.external?.allowed.length)
