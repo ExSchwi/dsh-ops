@@ -36,6 +36,8 @@
 </p>
 <p align="center"><em>左：deepseek-v4.1-flash-1017在各harness的跑分与开销<br>右：ops在自用benchmark上取得的的成绩。完整benchmark将随后续更新发布<br>dsh-ops团队将致力于持续优化dsh的token效率，以更低的成本更好地完成同样的任务</em></p>
 
+交流群：企鹅 1127808570
+
 ## 安装、更新、卸载
 
 ### 官方插件市场
