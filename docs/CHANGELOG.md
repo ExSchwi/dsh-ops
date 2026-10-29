@@ -7,49 +7,10 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-### Fixed
-
-- Withdraw PTC publication and cancel calls when a session leaves its selected preset; keep other
-  sessions' discovery selections intact and authorize external calls only in their owned wrapper.
-- Diagnose the selected discovery/shell services and scoped publication; clarify the host's
-  ancestor-registration/restriction limit for nested unrelated preset integrations.
-- 切换离开已接入预设时撤回 PTC 发布并取消调用；保留其他会话的发现选择，外部调用仅在自有包装内授权一次。
-- 诊断所选发现/Shell 的服务与作用域发布，并说明无关预设嵌套时宿主继承祖先注册/限制的边界。
-
-## [0.5.0] — 2026-10-27 — Preset-mode component roster
-
-### Breaking changes
-
-- Replace the seven-row component roster with eight rows: `dsh-ops/mode-minimal`,
-  `dsh-ops/mode-standard`, `dsh-ops/mode-ptc` and `dsh-ops/mode-cordis` for the built-in
-  presets, `dsh-ops/discovery` for dynamic tool loading, `dsh-ops/compat` for Compatibility
-  mode, `dsh-ops/panel` for data inspection and `dsh-ops/tui` for TUI integration. The former
-  `dsh-ops/shell`, `dsh-ops/file`, `dsh-ops/ptc` and `dsh-ops/hide-official` rows are gone
-  from the bundle; their modules remain as unsupported legacy exports for old profiles.
-- A mode row publishes OPS tools only for sessions composed from its preset. Standard and Cordis
-  replace the official `read`, `glob` and `grep`; every enabled mode replaces the official
-  Windows shell (`pwsh`/`pwsh_persistent` with `ops_bash` on Windows). A replaced tool is
-  hidden only while its OPS counterpart is visible in the same scope.
-- `dsh-ops/compat` inverts the removed per-tool `replaceTools` selection: enabling
-  Compatibility mode keeps every official tool visible while OPS tools stay available, and lifts
-  hiding without unloading any row. It is off by default; while it is on, token efficiency and
-  model ability are reduced.
-- Windows sessions route command execution through `ops_bash` instead of the official `pwsh`
-  when a mode row is enabled and the OPS counterpart is visible.
-- Restore the OPS icon on every component row.
-
-### Upgrade
-
-- Delete saved profile patch overrides for `dsh-ops-shell`, `dsh-ops-file`, `dsh-ops-ptc` and
-  `dsh-ops-hide-official`; a leftover override names no row in the new bundle and produces a
-  startup `patch: entry ... not found` warning. Set the mode switches you want afterwards.
-- The optional client carrier migration now only switches the profile bundle name. It preserves
-  every component row, switch and effective configuration; the nested client bundle renames only the
-  standard-mode row to the package root, so a name-qualified `dsh-ops/mode-standard` override is
-  refused for manual review instead of being rewritten.
-
-## [Unreleased]
-
+- Verify the hide-official assembled surface through the scope view when the host withholds the tool array. DSH 0.2.1 transforms a `PromptPresentation` in `system-prompt/assemble` and attaches `tools` afterwards, so the guard's `Array.isArray(result?.tools)` threw `assembled tool schemas unavailable` for every scoped assembly once `replaceTools` was non-empty — every turn was blocked, not one tool. A host that still supplies schemas keeps the stricter assembled-surface assertion (#413).
+- 宿主不再提供工具数组时，hide-official 改由作用域视图核验组装面。DSH 0.2.1 的 `system-prompt/assemble` 只变换 `PromptPresentation`，`tools` 在瀑布之后才追加，于是 `replaceTools` 非空时该校验的 `Array.isArray(result?.tools)` 对每个作用域都抛出 `assembled tool schemas unavailable`——整轮不可用，而非某个工具不可用。仍提供 schema 的宿主保留更严格的组装面断言（#413）。
+- Add candidate-only benchmark component switches with conservative patch editing, composed-config verification and a bounded readiness turn. Archive effective switches, show them in reports, and reject comparisons across different candidate switch sets (#296).
+- 为 benchmark 增加仅作用于 candidate 的组件开关，保守编辑补丁并核验合成配置及有时限的就绪 turn；归档实际开关、在报告中展示，并拒绝不同 candidate 开关集的混配（#296）。
 - Add current-scope `ops_status` diagnostics and public `diagnose(ctx, agent)` inspection; report integration, host/runtime, presentation and external provider readiness without executing or activating capabilities (#440).
 - 新增当前作用域 `ops_status` 与公开 `diagnose(ctx, agent)`，区分接入、宿主/运行时、展示及外部提供者状态，不执行或激活能力（#440）。
 - Expose opt-in Native capability providers with original names/contracts, explicit preset allow/startup/disable controls, per-instance selection invalidation and provider-owned authorization; reuse scoped discovery publication without requiring the OPS worker for external-only sessions (#440).
@@ -60,9 +21,6 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - 将作用域内 Native 发布与替换生命周期从内置预设策略分离；Native 渲染/读取证据归入 `file/native`，类型化 PTC 投影归入 `ptc/projection`，工具契约和组件导出保持不变（#440）。
 - 收敛所有 DSH 产品类型、懒加载 scope 与 profile carrier 入口到项目自有 `adapter/dsh` 边界；保持现有 Cordis 工具注册、提示词、权限、subprocess、PTC、结果与 UI 行为不变，并将宿主兼容声明扩展至 `>=0.2.0-rc.2 <0.2.2-0`，覆盖已验证的 DSH 0.2.1-rc.4。
 - Converge DSH product types, lazy scope loading and profile-carrier entrypoints behind the project-owned `adapter/dsh` boundary without changing existing Cordis tool, prompt, policy, subprocess, PTC, result or UI behavior; widen the bounded host range to `>=0.2.0-rc.2 <0.2.2-0`, including validated DSH 0.2.1-rc.4.
- with conservative patch editing, composed-config verification and a bounded readiness turn. Archive effective switches, show them in reports, and reject comparisons across different candidate switch sets (#296).
-- 为 benchmark 增加仅作用于 candidate 的组件开关，保守编辑补丁并核验合成配置及有时限的就绪 turn；归档实际开关、在报告中展示，并拒绝不同 candidate 开关集的混配（#296）。
-
 - Make benchmark model/reasoning selections actual shared routing conditions, archive composed configuration, and record the condition in sealed evidence. Repeated selections produce separate condition groups and reports; cross-condition pairing is refused, while historical runs remain readable as unknown (#294).
 - 将 benchmark 的模型与思考档位选择用于两臂实际路由，归档合成配置并在封存证据中记录条件。重复选项生成独立条件组和分组报告，拒绝跨条件配对；历史运行仍可按未知条件读取（#294）。
 - Make benchmark setup skip Windows-only checks explicitly on POSIX, preserve platform/component configuration in summaries and sealed arms, reject cross-platform comparisons by default, and expand the optional tools smoke to Linux, Windows and macOS (#295).
@@ -81,15 +39,12 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - grep 新增可选 `exactTotal: false`，按所需匹配行数提前停止，返回下界且不提供稳定续页；默认查询和 summary 保留完整扫描。无效编码仍明确标为覆盖缺口，不伪造完整总数（#384）。
 - Summarize large intact JSON spills for successful Native foreground Bash calls, with bounded samples and a full-output path. Preserve canonical/PTC values, stderr, exit status, host spill ownership and fallback rendering; add no command rewriting or runtime dependency (#297).
 - 成功的 Native 前台 Bash 调用可将大型完整 JSON 溢出输出显示为有限样本和完整输出路径；规范/PTC 数据、stderr、退出状态、宿主溢出存储及降级展示保持不变，不重写命令、不增加运行依赖（#297）。
-
 - Present `ops_bash` through the host's terminal-card contract with multiline commands, cwd, captured output and durable exit/signal facts. Background jobs retain their collection guidance; older UIs retain generic rendering (#32).
 - `ops_bash` 通过宿主 terminal card 契约展示多行命令、工作目录、已捕获输出和持久化退出码/信号；后台任务保留收集指引，旧 UI 保留通用展示（#32）。
 - Isolate PTC and discovery presentation probes by inheritance family so an unanswered host hook cannot block unrelated roots. Cancel obsolete probe waits on supersession, disposal and unload; reject late publication while preserving atomic family overlays and live authority checks (#359).
 - PTC 与 discovery 的呈现探测按继承族隔离，宿主 hook 未返回时不阻塞无关根会话；探测被取代、销毁或卸载时取消旧等待并拒绝迟到发布，同时保留继承族原子叠加层与实时权限检查（#359）。
-
 - Defer and coalesce Bash lifecycle publication until session event delivery completes, preserve live authority checks for retained callbacks, and cancel queued publication on unload (#386). Accept text-only prompt presentation hooks without weakening complete PTC assembly checks (#387). Add a delayed-discovery first-prompt regression for the readiness fix already integrated in #366 (#375).
 - Bash 生命周期发布延后到会话事件分发结束后并合并通知，保留旧回调的实时权限校验，卸载时取消待发布任务（#386）；兼容纯文本提示词呈现 hook，同时保留完整 PTC 装配检查（#387）。为 #366 已合入的就绪修复增加延迟 discovery 首轮回归（#375）。
-
 - Reuse discovery presentation decisions with live context/session/policy inputs and explicit prompt, configuration and service invalidation; keep pre-step and execution checks fresh. Avoid empty Native provider notifications (#345, #333).
 - discovery 按实时 context/session/policy 输入复用呈现判定，并在 prompt、配置和服务变化时失效；pre-step 与执行检查保持新鲜。不为空 Native provider 发送通知（#345、#333）。
 - Publish PTC projections by affected inheritance family, merge superseded requests and track hidden Native provider changes. Attribute OPS-owned tool changes locally so independent sessions keep their definitions and cached probes; unknown external changes remain conservative (#333).
@@ -146,6 +101,47 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - Fix independent restricted Windows Bash roots failing to reopen the current user's MSYS shared section while another root is alive (#363). Preserve the original ACL and the existing verified object-directory, pagefile-only and Low restricted-token boundaries; unrelated sections and filesystem permissions are unchanged.
 - 修复 Windows 受限模式中，一个 Bash 根进程仍在运行时，独立根进程无法重新打开当前用户的 MSYS 共享段的问题（#363）。保留原有 ACL，以及经过验证的对象目录、仅分页文件共享段、Low 受限令牌边界；不改变其它共享段和文件系统权限。
 
+### Fixed
+
+- Withdraw PTC publication and cancel calls when a session leaves its selected preset; keep other
+  sessions' discovery selections intact and authorize external calls only in their owned wrapper.
+- Diagnose the selected discovery/shell services and scoped publication; clarify the host's
+  ancestor-registration/restriction limit for nested unrelated preset integrations.
+- 切换离开已接入预设时撤回 PTC 发布并取消调用；保留其他会话的发现选择，外部调用仅在自有包装内授权一次。
+- 诊断所选发现/Shell 的服务与作用域发布，并说明无关预设嵌套时宿主继承祖先注册/限制的边界。
+
+## [0.5.0] — 2026-10-27 — Preset-mode component roster
+
+### Breaking changes
+
+- Replace the seven-row component roster with eight rows: `dsh-ops/mode-minimal`,
+  `dsh-ops/mode-standard`, `dsh-ops/mode-ptc` and `dsh-ops/mode-cordis` for the built-in
+  presets, `dsh-ops/discovery` for dynamic tool loading, `dsh-ops/compat` for Compatibility
+  mode, `dsh-ops/panel` for data inspection and `dsh-ops/tui` for TUI integration. The former
+  `dsh-ops/shell`, `dsh-ops/file`, `dsh-ops/ptc` and `dsh-ops/hide-official` rows are gone
+  from the bundle; their modules remain as unsupported legacy exports for old profiles.
+- A mode row publishes OPS tools only for sessions composed from its preset. Standard and Cordis
+  replace the official `read`, `glob` and `grep`; every enabled mode replaces the official
+  Windows shell (`pwsh`/`pwsh_persistent` with `ops_bash` on Windows). A replaced tool is
+  hidden only while its OPS counterpart is visible in the same scope.
+- `dsh-ops/compat` inverts the removed per-tool `replaceTools` selection: enabling
+  Compatibility mode keeps every official tool visible while OPS tools stay available, and lifts
+  hiding without unloading any row. It is off by default; while it is on, token efficiency and
+  model ability are reduced.
+- Windows sessions route command execution through `ops_bash` instead of the official `pwsh`
+  when a mode row is enabled and the OPS counterpart is visible.
+- Restore the OPS icon on every component row.
+
+### Upgrade
+
+- Delete saved profile patch overrides for `dsh-ops-shell`, `dsh-ops-file`, `dsh-ops-ptc` and
+  `dsh-ops-hide-official`; a leftover override names no row in the new bundle and produces a
+  startup `patch: entry ... not found` warning. Set the mode switches you want afterwards.
+- The optional client carrier migration now only switches the profile bundle name. It preserves
+  every component row, switch and effective configuration; the nested client bundle renames only the
+  standard-mode row to the package root, so a name-qualified `dsh-ops/mode-standard` override is
+  refused for manual review instead of being rewritten.
+  
 ## [0.4.1] — 2026-10-20 — Update locks stop leaving files behind
 
 - Stop the update lock from leaving `.dsh-ops-update-*.lock` sidecars behind (#319). The writer that takes the lock removes it on release, and only after proving the name still leads to the inode it locked, so a waiter that opened the old inode can never publish under it. A published write, a request refused after the lock and a directory-wide `replace` now leave the directory exactly as they found it; a sidecar left by a killed writer is not a stuck lock — the next write of that name binds to it, publishes under it and removes it.
