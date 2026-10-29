@@ -420,12 +420,47 @@ export async function officialToolHidingMountChecks() {
       const agent = await mint(ctx, 'ptc-after-assembly')
       const assembly = await assemble(ctx, agent)
       assert.ok(assembly.tools.some(entry => entry.name === 'run_code'), 'the transport is published')
+      assert.ok(scopedToolNames(ctx, agent).includes('read'), 'a collapsed scope hides nothing')
       const decision = await ctx.waterfall('tools/pre-execute', { agent, name: 'run_code' }, () => ({ kind: 'allow' }))
       assert.equal(decision.kind, 'allow', 'the transport stays dispatchable')
       for (const name of ['read', 'glob', 'grep']) {
         const refused = await ctx.waterfall('tools/pre-execute', { agent, name }, () => ({ kind: 'allow' }))
         assert.equal(refused.kind, 'deny', `${name} stays refused in a PTC scope`)
       }
+    } finally { await shutdown(ctx) }
+  })
+  await test('a mixed presentation is not mistaken for a collapsed one', async () => {
+    const { ctx } = await bootHost()
+    try {
+      ctx.provide('ptcRuntime', { language: 'typescript' })
+      await replacements(ctx)
+      for (const name of ['read', 'glob', 'grep', 'foreign']) ctx.tools.register(tool(name))
+      ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
+        const tools = assembly.tools
+        delete assembly.tools
+        return { ...await next(), tools }
+      })
+      await mount(ctx)
+      const agent = await mint(ctx, 'both-after-assembly')
+      const lift = agent.ctx.tools.presentAs('both')
+      const assembly = await assemble(ctx, agent)
+      assert.ok(assembly.tools.some(entry => entry.name === 'run_code'), 'a mixed scope keeps the transport')
+      assert.equal(scopedToolNames(ctx, agent).includes('read'), false, 'the replacement mask still applies')
+      lift()
+    } finally { await shutdown(ctx) }
+  })
+  await test('a deferred tool array still fails closed when a counterpart is missing', async () => {
+    const { ctx } = await bootHost()
+    try {
+      for (const name of ['read', 'foreign']) ctx.tools.register(tool(name))
+      ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
+        const tools = assembly.tools
+        delete assembly.tools
+        return { ...await next(), tools }
+      })
+      await mount(ctx)
+      const agent = await mint(ctx, 'native-after-assembly')
+      await assert.rejects(() => assemble(ctx, agent), /READINESS_BLOCKED/)
     } finally { await shutdown(ctx) }
   })
   await test('a fail-once prompt provider blocks only that assembly and recovers on the next request', async () => {
