@@ -402,6 +402,32 @@ export async function officialToolHidingMountChecks() {
       assert.equal((await execute(ctx, agent, 'foreign')).isError, false)
     } finally { await shutdown(ctx) }
   })
+  await test('a PTC scope stays usable when the host attaches tools after assembly', async () => {
+    const { ctx } = await bootHost({ toolsMode: 'ptc' })
+    try {
+      ctx.provide('ptcRuntime', { language: 'typescript' })
+      // No native counterparts on purpose: in a run_code deployment the replacements are
+      // SDK functions, so native readiness can never be proven there.
+      for (const name of ['read', 'glob', 'grep', 'foreign']) ctx.tools.register(tool(name))
+      // DSH 0.2.1 transforms the presentation here and attaches the tool array only after
+      // the waterfall, so the guard receives no array at all.
+      ctx.on('system-prompt/assemble', async (assembly, _context, next) => {
+        const tools = assembly.tools
+        delete assembly.tools
+        return { ...await next(), tools }
+      })
+      await mount(ctx)
+      const agent = await mint(ctx, 'ptc-after-assembly')
+      const assembly = await assemble(ctx, agent)
+      assert.ok(assembly.tools.some(entry => entry.name === 'run_code'), 'the transport is published')
+      const decision = await ctx.waterfall('tools/pre-execute', { agent, name: 'run_code' }, () => ({ kind: 'allow' }))
+      assert.equal(decision.kind, 'allow', 'the transport stays dispatchable')
+      for (const name of ['read', 'glob', 'grep']) {
+        const refused = await ctx.waterfall('tools/pre-execute', { agent, name }, () => ({ kind: 'allow' }))
+        assert.equal(refused.kind, 'deny', `${name} stays refused in a PTC scope`)
+      }
+    } finally { await shutdown(ctx) }
+  })
   await test('a fail-once prompt provider blocks only that assembly and recovers on the next request', async () => {
     const { ctx } = await bootHost()
     try {

@@ -166,7 +166,13 @@ export function apply(root: Context, raw?: unknown): void {
       // only ever be SDK functions, so readiness is unprovable by construction. Fail
       // closed on the assembled surface instead: a scope that really kept a selected
       // official tool still throws, while a run_code scope owns no mask and no error.
-      const collapsed = wire.length > 0 && wire.every(name => name === RUN_CODE)
+      // A host that transforms the presentation here (DSH 0.2.1) attaches the tool array
+      // only after this waterfall, so the wire is empty even for a run_code scope. Fall
+      // back to the scope view: the host injects the reserved transport there only for a
+      // non-native presentation.
+      const collapsed = wire.length > 0
+        ? wire.every(name => name === RUN_CODE)
+        : tools.get(RUN_CODE, context.scope) !== undefined
       const entry = entries.get(context.scope)
       if (entry) entry.collapsed = collapsed
       if (entry?.error) {
@@ -178,9 +184,13 @@ export function apply(root: Context, raw?: unknown): void {
       // surface. Ask the scope view instead: an official tool this component
       // selected is either still resolvable there or genuinely hidden. A host
       // that still supplies schemas keeps the stricter assembled-surface check.
-      const leaked = Array.isArray(result?.tools)
-        ? wire.filter(hideable)
-        : replaceTools.filter(tool => tools.get(tool, context.scope) !== undefined)
+      // A collapsed scope keeps the selected official names resolvable on purpose (the
+      // program calls their OPS counterparts), so they are not a leak there; the guard
+      // still refuses to dispatch them.
+      const leaked = collapsed ? []
+        : Array.isArray(result?.tools)
+          ? wire.filter(hideable)
+          : replaceTools.filter(tool => tools.get(tool, context.scope) !== undefined)
       if (leaked.length) throw block(context.scope, `assembled surface still contains hidden official tools: ${leaked.join(', ')}`)
       return result
     })
