@@ -7,6 +7,9 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Add deterministic Windows replace refusal and sidecar-lock reader regressions from PR #128, with explicit cross-platform skips and an honest coverage map.
+- 提取 PR #128 的 Windows replace 拒绝与 sidecar 锁读取确定性回归，准确接入跨平台 skip，并记录覆盖与未测范围。
+
 - Bound private Windows Bash IPC cache growth through verified content reuse and guarded reclamation, and expose cache usage in `bash-runtime status` and `ladder` (#466).
 - 通过经过验证的内容复用与受保护回收限制 Windows 私有 Bash IPC 缓存增长，并在 `bash-runtime status` 与 `ladder` 中显示缓存占用（#466）。
 
