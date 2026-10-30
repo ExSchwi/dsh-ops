@@ -128,6 +128,11 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+- Let `/Prev` and `/XRefStm` be ordinary PDF dictionary keys: they mark an unsupported
+  incremental update only as trailer keys, so an outline item's `/Prev` no longer makes the
+  whole document unreadable (#427).
+- 允许 `/Prev` 与 `/XRefStm` 作为普通 PDF 字典键：仅当它们出现在 trailer 中才表示不支持的增量更新，大纲项里的 `/Prev` 不再使整份文档被判不可读（#427）。
+
 - Add current-scope `ops_status` diagnostics and public `diagnose(ctx, agent)` inspection; report integration, host/runtime, presentation and external provider readiness without executing or activating capabilities (#440).
 - 新增当前作用域 `ops_status` 与公开 `diagnose(ctx, agent)`，区分接入、宿主/运行时、展示及外部提供者状态，不执行或激活能力（#440）。
 - Expose opt-in Native capability providers with original names/contracts, explicit preset allow/startup/disable controls, per-instance selection invalidation and provider-owned authorization; reuse scoped discovery publication without requiring the OPS worker for external-only sessions (#440).
