@@ -17,7 +17,7 @@ import Sandbox from '@deepseek-ai/dsh-sandbox-local'
 import * as Standard from '../lib/components/mode-standard/index.js'
 import * as Cordis from '../lib/components/mode-cordis/index.js'
 import * as Ptc from '../lib/components/mode-ptc/index.js'
-import * as Compat from '../lib/components/compat/index.js'
+process.env.DSH_OPS_LEGACY_ROWS = '1'
 import * as Discovery from '../lib/components/discovery/index.js'
 import { BASH_TOOL, modeSectionName, publicToolName } from '../lib/policy.js'
 import { MODE_PLANS, residentTools } from '../lib/modes/plan.js'
@@ -192,18 +192,14 @@ await test('creating a session does not re-plan every live session', () => withT
   } finally { await shutdown(ctx) }
 }))
 
-await test('compatibility mode restores every official tool while the OPS surface stays published', () => withTempDir('mode-compat', async cwd => {
+await test('hideOfficialTools false keeps official tools alongside residents', () => withTempDir('mode-coexist', async cwd => {
   const { ctx, names, mint } = await boot()
   try {
-    await ctx.plugin(Standard, { required: true, promptPolicy: true })
+    await ctx.plugin(Standard, { required: true, promptPolicy: true, hideOfficialTools: false })
     const agent = await mint({ preset: 'standard', cwd })
-    await waitFor(() => names(agent).includes('ops_read_files') && !names(agent).includes('read'), { what: 'replacement applied' })
-    const compat = await ctx.plugin(Compat, {})
-    await waitFor(() => OFFICIAL.filter(name => name !== 'write').every(name => names(agent).includes(name)), { what: 'compatibility restores official file tools' })
-    for (const name of RESIDENT) assert.ok(names(agent).includes(name), `compatibility never unloads ${name}`)
-    await compat.dispose()
-    await waitFor(() => OFFICIAL.filter(name => name !== 'write').every(name => !names(agent).includes(name)), { what: 're-hide after compatibility is off' })
-    for (const name of RESIDENT) assert.ok(names(agent).includes(name), `re-hide never unloads ${name}`)
+    await waitFor(() => names(agent).includes('ops_read_files'))
+    for (const name of OFFICIAL) assert.ok(names(agent).includes(name), name)
+    for (const name of RESIDENT) assert.ok(names(agent).includes(name), name)
   } finally { await shutdown(ctx) }
 }))
 
