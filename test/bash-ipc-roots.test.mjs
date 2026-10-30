@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { pinnedBashExecutable } from '../lib/shells/pinned.js'
+import { markManaged } from '../lib/bash-ipc-lifecycle.js'
 import { confinedBash } from '../lib/bash-ipc.js'
 import { independentBashRoots } from './lib/bash-ipc-processes.mjs'
 import { assert, test, report, ownWindowsFixture, withTempDir } from './lib/harness.mjs'
@@ -49,7 +50,8 @@ await test('identical payloads share one generation and a legacy generation is a
     fs.renameSync(path.join(cache, runtime.runtime), path.join(cache, legacy))
     const marker = path.join(cache, legacy, '.ops-ipc.json')
     const parsed = JSON.parse(fs.readFileSync(marker, 'utf8'))
-    parsed.identity = legacy
+    parsed.identity = runtime.runtime // crash after identity rewrite, before rename
+    fs.rmSync(path.join(cache,legacy,'.ops-leases'),{recursive:true,force:true}) // fixture: no child was launched
     fs.writeFileSync(marker, `${JSON.stringify(parsed)}\n`)
     const adopted = confinedBash(path.join(minimal, 'bash.exe'), { home })
     assert.equal(adopted.runtime, runtime.runtime)
@@ -70,6 +72,7 @@ await test('a confined call reclaims older generations and keeps one predecessor
     for (const [name, when] of [[older, Date.UTC(2026, 0, 1)], [predecessor, Date.UTC(2026, 0, 2)]]) {
       fs.mkdirSync(path.join(cache, name), { recursive: true })
       fs.writeFileSync(path.join(cache, name, 'payload.bin'), 'stale generation\n')
+      markManaged(path.join(cache,name))
       fs.utimesSync(path.join(cache, name), new Date(when), new Date(when))
     }
     const minimal = minimalPayload(home)
@@ -78,6 +81,36 @@ await test('a confined call reclaims older generations and keeps one predecessor
     assert.equal(generations.includes(runtime.runtime), true, 'the current generation was staged')
     assert.equal(generations.includes(older), false, 'the older generation was reclaimed')
     assert.equal(generations.includes(predecessor), true, 'one predecessor is retained')
+  })
+})
+
+await test('different PATH payload files never share; source memo notices changes; links are refused', async () => {
+  if(process.platform!=='win32')return
+  await withTempDir('bash-ipc-payload-identity',home=>{
+    const minimal=minimalPayload(home)
+    fs.writeFileSync(path.join(minimal,'other.exe'),'payload-one')
+    const first=confinedBash(path.join(minimal,'bash.exe'),{home})
+    const second=path.join(home,'second/usr/bin')
+    fs.mkdirSync(second,{recursive:true})
+    for(const name of fs.readdirSync(minimal))fs.copyFileSync(path.join(minimal,name),path.join(second,name))
+    fs.writeFileSync(path.join(second,'other.exe'),'payload-two-different')
+    const changed=confinedBash(path.join(second,'bash.exe'),{home})
+    assert.notEqual(changed.runtime,first.runtime)
+    assert.equal(fs.readFileSync(path.join(path.dirname(changed.file),'other.exe'),'utf8'),'payload-two-different')
+    fs.writeFileSync(path.join(second,'other.exe'),'payload-three-different-length')
+    const changedAgain=confinedBash(path.join(second,'bash.exe'),{home})
+    assert.notEqual(changedAgain.runtime,changed.runtime)
+    assert.equal(fs.existsSync(path.dirname(first.file)),true,'older leased generation survives even beyond predecessor')
+    const linked=path.join(home,'linked-payload')
+    fs.symlinkSync(path.resolve(minimal,'../..'),linked,'junction')
+    assert.throws(()=>confinedBash(path.join(linked,'usr/bin/bash.exe'),{home}),/symlink|junction/)
+    const cache=path.join(home,'dsh-ops/bash-ipc'), candidate='0'.repeat(24), outside=path.join(home,'outside')
+    fs.mkdirSync(outside)
+    fs.writeFileSync(path.join(outside,'.ops-ipc.json'),'do-not-rewrite')
+    fs.symlinkSync(outside,path.join(cache,candidate),'junction')
+    fs.writeFileSync(path.join(second,'other.exe'),'fourth payload')
+    confinedBash(path.join(second,'bash.exe'),{home})
+    assert.equal(fs.readFileSync(path.join(outside,'.ops-ipc.json'),'utf8'),'do-not-rewrite')
   })
 })
 

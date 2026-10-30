@@ -38,6 +38,36 @@ await test('a linked managed ancestor is refused before any removal', async () =
   })
 })
 
+await test('cache cleanup is preview-only until all hosts are explicitly stopped', async () => {
+  await withTempDir('manager-cache-clean', home => {
+    const cache = path.join(home, 'dsh-ops/bash-ipc')
+    const names = ['a', 'b', 'c'].map(value => value.repeat(24))
+    for (const [index, name] of names.entries()) {
+      const dir = path.join(cache, name)
+      fs.mkdirSync(dir, { recursive: true })
+      fs.writeFileSync(path.join(dir, '.ops-ipc.json'), JSON.stringify({ identity: name, files: {}, tree: {} }))
+      fs.writeFileSync(path.join(dir, 'payload.bin'), 'fixture')
+      fs.utimesSync(dir, new Date(2026, 0, index + 1), new Date(2026, 0, index + 1))
+    }
+    const unknown = path.join(cache, 'backup.stale-notes')
+    fs.mkdirSync(unknown)
+    const call = args => spawnSync(process.execPath, [path.join(PACKAGE_ROOT, 'bin/dsh-ops.mjs'), 'bash-runtime', 'clean-cache', ...args], { encoding: 'utf8', env: { ...process.env, DSH_HOME: home } })
+    const preview = call([])
+    assert.equal(preview.status, 0, preview.stderr)
+    assert.equal(JSON.parse(preview.stdout).action, 'preview')
+    assert.equal(fs.existsSync(path.join(cache, names[0])), true)
+    assert.notEqual(call(['--yes']).status, 0)
+    assert.equal(fs.existsSync(path.join(cache, names[0])), true)
+    assert.equal(call(['--yes', '--all-hosts-stopped', '--dry-run']).status, 0)
+    assert.equal(fs.existsSync(path.join(cache, names[0])), true)
+    const applied = call(['--yes', '--all-hosts-stopped'])
+    assert.equal(applied.status, 0, applied.stderr)
+    assert.equal(fs.existsSync(path.join(cache, names[0])), false)
+    assert.equal(fs.existsSync(path.join(cache, names[2])), true)
+    assert.equal(fs.existsSync(unknown), true)
+  })
+})
+
 await test('Git selection prints an absolute config and never chooses a PATH WSL launcher', async () => {
   await withTempDir('manager-git', root => {
     const file = path.join(root, 'programs/Git/bin/bash.exe'), wsl = path.join(root, 'system/System32/bash.exe')
@@ -103,8 +133,8 @@ await test('bash-runtime status reports the private runtime cache without writin
     assert.equal(parsed.bashIpc.root, cache)
     assert.equal(parsed.bashIpc.generations, 2)
     assert.equal(parsed.bashIpc.totalBytes, 18)
-    // The stub bash cannot name the content identity, so the newest generation is the one kept.
-    assert.equal(parsed.bashIpc.reclaimableBytes, 11)
+    // Unmarked legacy directories are observed, never claimed automatically reclaimable.
+    assert.equal(parsed.bashIpc.reclaimableBytes, 0)
     assert.deepEqual(parsed.bashIpc.entries.map((entry) => entry.name), [current, older])
     assert.equal(fs.readFileSync(path.join(cache, current, 'payload.bin')).length, 7, 'status never writes')
   })
