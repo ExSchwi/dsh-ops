@@ -4,6 +4,10 @@ What each of the eight components publishes, with parameters and permission requ
 
 ## Components at a glance
 
+Third-party presets should use [`dsh-ops/integration`](integration-api.md) rather than mounting
+one of the four built-in identities. It adds independently configured tools and `ops_status`
+diagnostics, while external Native plugins may use the [provider contract](external-provider.md).
+
 | Row `name` | Description | Default | Published tools |
 | --- | --- | --- | --- |
 | `dsh-ops/mode-minimal` | Enhanced Minimal preset: dynamic loading and the Windows official shell replacement | On | `ops_bash`; no resident file tool |
@@ -272,7 +276,7 @@ The resident `ops_read_files` is not the counterpart for `read`; Standard and Co
 `ops_inspect_local_file`, `ops_glob` and `ops_grep` as the reviewed counterparts.
 
 Mode rows export StandardSchemaV1 validation together with public JSON schema descriptors for the
-built-in host row forms. Optional browser settings pages require the explicit client carrier
+built-in host row forms. The browser settings page is mounted on the single row,
 migration; see [configuration](configuration-reference.md).
 
 

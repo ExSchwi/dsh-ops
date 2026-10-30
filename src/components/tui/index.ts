@@ -1,10 +1,11 @@
 /** Optional read-only panel. Missing tuiPanels leaves only this component pending. */
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-session'
+import type { Context } from '../../adapter/dsh/types.js'
+import type {} from '../../adapter/dsh/types.js'
 import type { AttentionLevel } from '../../tui/attention.js'
 import { createActivityStore, resolveActivityConfig } from '../../tui/activity.js'
 import { createOpsPanel } from '../../tui/panel.js'
 import { createAttentionStore } from '../../tui/attention.js'
+import { retired as retiredLegacyRow } from '../../settings/legacy.js'
 
 export { Config } from '../../settings/tui-config.js'
 export const name = 'dsh-ops-tui'
@@ -18,6 +19,7 @@ export interface TuiPanels {
   badge(id: string, value: { level: AttentionLevel | undefined; unread: number } | null): void
 }
 export function apply(ctx: Context, rawConfig?: unknown): void {
+  if (retiredLegacyRow(ctx, 'tui')) return
   const config = resolveActivityConfig(rawConfig)
   const panels = ctx.get('tuiPanels') as TuiPanels
   const store = createActivityStore(config)

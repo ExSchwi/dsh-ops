@@ -1,9 +1,10 @@
 /** Opt-in capture. A disabled row registers nothing and starts no filesystem work. */
-import type { Context } from '@deepseek-ai/cordis'
-import type {} from '@deepseek-ai/dsh-session'
+import type { Context } from '../../adapter/dsh/types.js'
+import type {} from '../../adapter/dsh/types.js'
 import { readFileSync } from 'node:fs'
 import { createPanelCollector, resolvePanelConfig } from '../../panel/collect.js'
 import { configObject, editable, settingsConfig } from '../../settings/schema.js'
+import { retired as retiredLegacyRow } from '../../settings/legacy.js'
 
 export const name = 'dsh-ops-panel'
 export { resolvePanelConfig }
@@ -19,6 +20,7 @@ function pluginVersion(): string | undefined {
   } catch { return undefined }
 }
 export function apply(ctx: Context, rawConfig: unknown): void {
+  if (retiredLegacyRow(ctx, 'panel')) return
   const config = resolvePanelConfig(configObject(rawConfig))
   if (!config.capture) {
     ctx.logger.info('dsh-ops: legacy panel capture:false remains off. Set capture:true only when collection is wanted; the row switch stops collection.')

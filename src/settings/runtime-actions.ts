@@ -1,11 +1,12 @@
 /** Operator runtime plans: fixed actions, one-use previews, serialized execution. */
 import { randomUUID, createHash } from 'node:crypto'
 import path from 'node:path'
-import type { TypertGatewayBinding } from '@deepseek-ai/dsh-typert-protocol'
+import type { TypertGatewayBinding } from '../adapter/dsh/types.js'
 import { PACKAGE_ROOT } from '../paths.js'
 import { gitBashCandidates, managedBashInventory, removeManagedBash, selectBashRuntime } from '../shells/manager.js'
 import { shellUpstreamPin, provisionedShellVersionDir } from '../shells/pins.js'
-import { hostPwshUpgradePlan, upgradeHostPwsh } from '../shells/pwsh-upgrade.js'
+import { hostPwshUpgradePlan, upgradeHostPwsh, hostPwshVersion } from '../shells/pwsh-upgrade.js'
+import { companionVersion } from './companion.js'
 import type { UpgradeProcessResult } from '../shells/pwsh-upgrade.js'
 import { parseAction, parseSource } from './runtime-contract.js'
 import type { RuntimeAction, RuntimePlan, RuntimeResult, RuntimeSnapshot, RuntimeSelection, BashSource } from './runtime-contract.js'
@@ -35,8 +36,10 @@ export class RuntimeActions {
   snapshot(): RuntimeSnapshot {
     const powerShell = hostPwshUpgradePlan(this.options)
     return { platform: this.options.platform, managed: managedBashInventory(this.options), git: gitBashCandidates(this.options),
+      ...(companionVersion(this.options) === undefined ? {} : { companion: companionVersion(this.options) }),
       powerShell: { supported: powerShell.supported, guidance: powerShell.guidance,
-        ...(powerShell.unavailable ? { unavailable: powerShell.unavailable } : {}) } }
+        ...(powerShell.unavailable ? { unavailable: powerShell.unavailable } : {}),
+        ...(hostPwshVersion(this.options) === undefined ? {} : { version: hostPwshVersion(this.options) }) } }
   }
   select(source: BashSource): RuntimeSelection {
     const selected = selectBashRuntime(parseSource(source), this.options)

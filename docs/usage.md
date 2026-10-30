@@ -97,6 +97,8 @@ dsh-ops bash-runtime remove --yes      # remove receipt-marked managed versions
 
 `git` and `managed` print an absolute `bashPath` configuration for the host config editor; they do not edit a profile or PATH. Reload the mode row after applying the selection or installing/removing its runtime. Stop running Bash jobs before removal. Removal refuses links in the managed path and preserves unmarked versions, system Git and PowerShell. `install` reuses the pinned download and checksum checks from `provision-shells --bash`; `--dry-run` makes no download or change. Windows restricted modes still require the pinned MSYS IPC compatibility match. A different Git Bash remains a full-access choice; approval never repairs an incompatible restricted runtime. Linux/macOS continue using host Bash.
 
+Windows confined calls stage a private MSYS tree under `<DSH_HOME>/dsh-ops/bash-ipc`. Identical verified payloads share a content-addressed generation across profiles using the same DSH home; separate homes remain isolated. Lifecycle locking and durable process leases protect selected runtimes, including the interval before a child starts. Automatic reclamation retains the current generation and one predecessor, plus leased, legacy or uncertain entries. `bash-runtime status` and `ladder` expose observed cache usage. To reclaim historical copies, first run `dsh-ops bash-runtime clean-cache` to preview. Stop **all** OPS hosts and Bash jobs, then run `dsh-ops bash-runtime clean-cache --yes --all-hosts-stopped` against the intended `DSH_HOME`; `--dry-run` never removes anything. Only recognized marker-owned generations are eligible; unrelated directories and linked paths are not removed. The selected generation and one predecessor remain. Removed caches are rebuilt on demand. Do not manually delete caches while any OPS host or shell may still use them.
+
 ### One-command npm installation
 
 ```console
@@ -121,11 +123,7 @@ The ordinary DSH CLI cannot manage the reserved `desktop` profile; do not confus
 
 ### Host compatibility and display metadata
 
-The package declares **DSH 0.2.0-rc.2 and 0.2.1-rc.2** explicitly in both `engines.dsh`
-and the legacy DSH peer dependency. DSH 0.2.1 uses `engines.dsh` in preference to peers.
-Other prereleases, including 0.2.1-rc.3, are outside this declaration: accepting its
-text-only prompt hook does not establish compatibility with all presentation and
-official-tool replacement APIs.
+The package declares the bounded DSH compatibility range `>=0.2.0-rc.2 <0.2.2-0` in both `engines.dsh` and the legacy DSH peer dependency. This includes `0.2.0-rc.2`, `0.2.1-rc.2`, `0.2.1-rc.3`, `0.2.1-rc.4` and the `0.2.1` stable line, while rejecting `0.2.0-rc.1`, `0.2.2` prereleases and `0.3.0`. The rc4 host graph is validated separately in the isolated host matrix; the plugin's native adapter preserves the existing Cordis tool, prompt, policy, subprocess, PTC and UI behavior.
 
 The bundle icon comes from the root manifest. Each component exports its own
 `dsh-ops/<component>/icon` and `locale/*.json`; DSH 0.2.1 does not use a component's

@@ -1,5 +1,5 @@
 /** Shared strict descriptors for operator-only settings actions; no host value imports. */
-import type { InvocationDescriptor, RemoteResult, TypertCodec } from '@deepseek-ai/dsh-typert-protocol'
+import type { InvocationDescriptor, RemoteResult, TypertCodec } from '../adapter/dsh/types.js'
 export const RUNTIME_ACTIONS = ['install-bash', 'remove-bash', 'upgrade-pwsh'] as const
 export type RuntimeAction = typeof RUNTIME_ACTIONS[number]
 export type BashSource = 'managed' | 'git'
@@ -8,7 +8,9 @@ export interface RuntimeSnapshot {
   platform: string
   managed: { version: string; directory: string; owned: boolean }[]
   git: string[]
-  powerShell: { supported: boolean; guidance: string; unavailable?: string }
+  powerShell: { supported: boolean; guidance: string; unavailable?: string; version?: string }
+  /** Installed version of dsh-win-pwsh7, when the profile has it. */
+  companion?: string
 }
 export interface RuntimeSelection { bashPath: string; restriction: string }
 export interface RuntimeResult {

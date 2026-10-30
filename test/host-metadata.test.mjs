@@ -24,8 +24,8 @@ await test(`explicit host compatibility is consistent and bounded (${boot.getDsh
   // read peers, newer hosts prefer engines, so test both independently.
   for (const range of [pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh']]) {
     const candidate = { name: pkg.name, version: pkg.version, engines: { dsh: range }, peerDependencies: { '@deepseek-ai/dsh': range } }
-    for (const version of ['0.2.0-rc.2', '0.2.1-rc.2']) assert.equal(boot.evaluatePluginCompatibility(candidate, {}, version), undefined)
-    for (const version of ['0.2.0-rc.1', '0.2.1-rc.3', '0.3.0']) assert.ok(boot.evaluatePluginCompatibility(candidate, {}, version), `must not claim ${version}`)
+    for (const version of ['0.2.0-rc.2', '0.2.1-rc.2', '0.2.1-rc.3', '0.2.1-rc.4']) assert.equal(boot.evaluatePluginCompatibility(candidate, {}, version), undefined)
+    for (const version of ['0.2.0-rc.1', '0.2.2-rc.1', '0.3.0']) assert.ok(boot.evaluatePluginCompatibility(candidate, {}, version), `must not claim ${version}`)
   }
 })
 
@@ -55,8 +55,8 @@ await test('legacy component modules stay exported for saved rows but are no lon
 
 await test('the host composes every shipped row and refuses a missing override target', () => {
   const rows = composeBundle([patch], boot.composeEntries)
-  assert.deepEqual(rows.map(row => row.id), components.map(name => `dsh-ops-${name}`))
-  assert.deepEqual(rows.map(row => row.name), components.map(componentEntry))
+  assert.deepEqual(rows.map(row => row.id), ['dsh-ops'])
+  assert.deepEqual(rows.map(row => row.name), ['dsh-ops'])
   const upstream = [{ insert: [{ id: 'upstream', name: 'cordis:fixture' }] }]
   const override = [{ id: 'upstream', config: { enabled: true } }]
   assert.equal(composeBundle([upstream, patch, override], boot.composeEntries).find(row => row.id === 'upstream').config.enabled, true)

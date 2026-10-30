@@ -1,5 +1,9 @@
 # Advanced tools on demand
 
+Custom presets must explicitly opt in through [the integration API](integration-api.md). External
+Native plugins use [the provider contract](external-provider.md); installing a plugin alone never
+allows all sessions to discover it. PTC provider SDK registration is not yet supported.
+
 中文：[工具发现](工具发现.md).
 
 `dsh-ops/discovery` publishes `ops_discover_tools` in each eligible Native scope. Describe a capability (`metadata revision hash`) or select an exact public name (`select:ops_stat`). Discovery only chooses tools; it performs no file action. A successful selection remains pending through the current tool round. Its owning session's committed `step/end` publishes it for the next provider request. The pinned host assembles before `agent/pre-step`; queued publication is therefore drained and the public prompt service reassembles a stale snapshot. Diagnostic assemblies before that committed boundary cannot activate pending names. Newly published tools remain scoped to their owner; parents, children and siblings must discover independently.
@@ -56,7 +60,7 @@ The default file/discovery surface is now `ops_read_files` plus `ops_discover_to
 
 BM-04 now runs the implemented PDF reader through the real AgentLoop: its schema is absent initially, remains pending in the current round, appears in the owning next provider request, stays absent for a sibling, and then returns the fixture text. This verifies the supported PDF subset, not general PDF/OCR coverage.
 
-Built-in settings persist validated arrays. Optional browser multi-selects use the pinned host client APIs and need the explicit offline carrier described in [configuration](configuration-reference.md); they are not activated by the default legacy file row.
+Built-in settings persist validated arrays. The browser page's multi-selects use the pinned host client APIs described in [configuration](configuration-reference.md); they belong to the single row's settings page, not to a legacy file row.
 
 Overlapping discovery rows use the nearest owning scope; the last row mounted in the same scope wins until it is unloaded. File rows may mount before or after discovery. Only exact OPS-owned Native registrations are yielded or masked; unrelated external registrations remain visible. PTC Native shadows retain their exact origin, and discovered activations cannot be inherited by another agent. Native `result` is page/release only and may be discovered in read-only mode; the worker still rejects forbidden release actions. Resident `read_files` and discoverable `edit_file` retain their existing per-file completeness and CAS contracts.
 
