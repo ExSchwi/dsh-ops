@@ -5,6 +5,11 @@ All notable changes to this package are recorded here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+- Bound private Windows Bash IPC cache growth through verified content reuse and guarded reclamation, and expose cache usage in `bash-runtime status` and `ladder` (#466).
+- 通过经过验证的内容复用与受保护回收限制 Windows 私有 Bash IPC 缓存增长，并在 `bash-runtime status` 与 `ladder` 中显示缓存占用（#466）。
+
 ## [0.5.0-alpha1] — 2026-10-30 — Unstable development prerelease
 
 - This is an unstable development prerelease relative to v0.4.4, intended for isolated testing rather than stable production use. The single-row configuration is a breaking migration: move saved legacy-row settings into `dsh-ops`; resident tools and dynamic loading are independent.
@@ -78,6 +83,7 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   ancestor-registration/restriction limit for nested unrelated preset integrations.
 - 切换离开已接入预设时撤回 PTC 发布并取消调用；保留其他会话的发现选择，外部调用仅在自有包装内授权一次。
 - 诊断所选发现/Shell 的服务与作用域发布，并说明无关预设嵌套时宿主继承祖先注册/限制的边界。
+
 
 ## [0.5.0] — 2026-10-27 — Preset-mode component roster
 
