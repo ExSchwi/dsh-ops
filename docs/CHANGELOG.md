@@ -69,6 +69,9 @@ this package adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
+- Resolve Native file paths, Bash workdirs and default result roots through the live DSH
+  working-directory service after `working_directory` changes (#447). Keep workspace write
+  authority and stored reference roots independent; show directory provenance in file/Bash output.
 - The PTC row no longer offers Bash publication and an executor override, which its schema never
   accepted; the discovery page now exposes the worker override, "fail when the worker is missing"
   and the credential fence that already existed in its schema.
