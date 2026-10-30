@@ -11,6 +11,7 @@ import { resolveHidingConfig } from './config.js'
 export { resolveHidingConfig } from './config.js'
 import { OFFICIAL_REPLACEMENTS } from './official-tool-catalog.js'
 import { safeDispose } from './teardown.js'
+import { retired as retiredLegacyRow } from './settings/legacy.js'
 
 interface Entry { context: Context; lifts: (() => void)[]; cleanupError?: string; error?: string; reported?: string
   /** Set from the assembled surface: this scope presents one program entry, so its
@@ -25,6 +26,7 @@ const RUN_CODE = 'run_code'
 const blocked = (detail: string): string => `READINESS_BLOCKED (EXECUTOR_UNAVAILABLE): dsh-ops hide-official cannot verify selected replacements: ${detail}. Restore the selected OPS tools, remove the selection from replaceTools, or disable the dsh-ops-hide-official row.`
 
 export function apply(root: Context, raw?: unknown): void {
+  if (retiredLegacyRow(root, 'hide-official')) return
   const { replaceTools }: { replaceTools: OfficialReplacement[] } = resolveHidingConfig(raw)
   // Empty and legacy-only rows install no hooks and cannot block a session.
   if (!replaceTools.length) return
@@ -166,15 +168,34 @@ export function apply(root: Context, raw?: unknown): void {
       // only ever be SDK functions, so readiness is unprovable by construction. Fail
       // closed on the assembled surface instead: a scope that really kept a selected
       // official tool still throws, while a run_code scope owns no mask and no error.
-      const collapsed = wire.length > 0 && wire.every(name => name === RUN_CODE)
+      // A host that transforms the presentation here attaches the tool array only after
+      // this waterfall, so the wire proves nothing then. The host also publishes the
+      // `tools:ptc-only` section for a real program presentation, renders it empty for a
+      // mixed one, and the section survives the deferred array — judge the scope by it
+      // rather than by the configuration view, which answers for `both` as well.
+      const ptcOnly = Array.isArray(result?.sections)
+        && result.sections.some(section => section.name === 'tools:ptc-only' && Boolean(section.text.trim()))
+      const collapsed = Array.isArray(result?.tools)
+        ? wire.length > 0 && wire.every(name => name === RUN_CODE)
+        : ptcOnly
       const entry = entries.get(context.scope)
       if (entry) entry.collapsed = collapsed
       if (entry?.error) {
         if (!collapsed) throw new Error(entry.error)
         clear(entry); entry.error = undefined
       }
-      if (!Array.isArray(result?.tools)) throw block(context.scope, 'assembled tool schemas unavailable')
-      const leaked = result.tools.map(schema => schema.name).filter(hideable)
+      // DSH 0.2.1 transforms a presentation here and attaches the tool array only
+      // after the waterfall, so the payload proves nothing about the assembled
+      // surface. Ask the scope view instead: an official tool this component
+      // selected is either still resolvable there or genuinely hidden. A host
+      // that still supplies schemas keeps the stricter assembled-surface check.
+      // A collapsed scope keeps the selected official names resolvable on purpose (the
+      // program calls their OPS counterparts) and owns no mask, so there is no assembled
+      // surface to leak there; the guard still refuses to dispatch them.
+      const leaked = collapsed ? []
+        : Array.isArray(result?.tools)
+          ? wire.filter(hideable)
+          : replaceTools.filter(tool => typeof tools.get === 'function' && tools.get(tool, context.scope) !== undefined)
       if (leaked.length) throw block(context.scope, `assembled surface still contains hidden official tools: ${leaked.join(', ')}`)
       return result
     })
