@@ -3,7 +3,7 @@ import path from 'node:path'
 import { pinnedBashExecutable } from '../lib/shells/pinned.js'
 import { confinedBash } from '../lib/bash-ipc.js'
 import { independentBashRoots } from './lib/bash-ipc-processes.mjs'
-import { assert, test, report, withTempDir } from './lib/harness.mjs'
+import { assert, test, report, ownWindowsFixture, withTempDir } from './lib/harness.mjs'
 
 /**
  * Stage the smallest payload the confined path accepts: the pinned executable and its DLLs, so the
@@ -92,6 +92,7 @@ await test('independent restricted Bash roots reopen the user shared section (#3
     assert.ok(runtime.runtime)
     const workspace = path.join(home, 'workspace')
     fs.mkdirSync(workspace)
+    ownWindowsFixture(workspace)
     await independentBashRoots(runtime, workspace)
   })
 })
