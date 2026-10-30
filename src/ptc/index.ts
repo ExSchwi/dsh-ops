@@ -65,8 +65,14 @@ export interface PtcGate {
   watch?(notify: () => void): () => void
 }
 
+/** Legacy Loader entry; retained rows stay inert in the merged bundle. */
 export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allows: () => true }): void {
   if (retiredLegacyRow(root, 'ptc')) return
+  mountPtc(root, rawConfig, gate)
+}
+
+/** Mount the owned service for an explicit preset integration. */
+export function mountPtc(root: Context, rawConfig: unknown, gate: PtcGate = { allows: () => true }): void {
   const config = resolvePtcConfig(rawConfig)
   const loadable = gate.resident === false ? [...new Set([...config.allowedTools, ...PTC_RESIDENT_TOOLS])] : config.allowedTools
   mountWorkspacePreparation(root)

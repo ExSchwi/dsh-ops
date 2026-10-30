@@ -52,8 +52,14 @@ const DISCOVER = publicToolName(DISCOVERY_TOOL_NAME)
 const advanced = DISCOVERABLE_TOOLS.map(publicToolName)
 export const name = 'dsh-ops-discovery'
 
+/** Legacy Loader entry; retained rows stay inert in the merged bundle. */
 export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allows: agent => !integrationFor(root, agent) && modeOf(root, agent) !== undefined }): void {
   if (retiredLegacyRow(root, 'discovery')) return
+  mountDiscovery(root, raw, gate)
+}
+
+/** Mount the owned service for an explicit preset integration. */
+export function mountDiscovery(root: Context, raw: unknown, gate: DiscoveryGate = { allows: agent => !integrationFor(root, agent) && modeOf(root, agent) !== undefined }): void {
   const config = resolveDiscoveryConfig(raw)
   let worker: string | undefined
   const externalEnabled = Boolean(gate.external?.allowed.length)

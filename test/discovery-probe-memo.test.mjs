@@ -2,11 +2,13 @@
 import { createScope } from '@deepseek-ai/dsh-scope'
 import Sandbox from '@deepseek-ai/dsh-sandbox-local'
 import Subprocess from '@deepseek-ai/dsh-subprocess-local'
-import * as discovery from '../lib/components/discovery/index.js'
+import * as discoveryModule from '../lib/components/discovery/index.js'
 import { withToolChange } from '../lib/tool-changes.js'
 import { isPresentationProbe } from '../lib/presentation.js'
 import { assert, test, report, wait, withTempDir } from './lib/harness.mjs'
 import { bootHost, shutdown } from './lib/host.mjs'
+import { legacyComponent } from './lib/legacy-component.mjs'
+const discovery = legacyComponent(discoveryModule)
 
 const foreignTool = name => ({
   name,
