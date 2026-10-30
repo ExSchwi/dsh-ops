@@ -20,7 +20,7 @@ const WORKERS = [...UNIX_WORKERS, WINDOWS_WORKER]
 /** Parse without extraction; reject ambiguous, unsafe or incomplete runtime archives. */
 export async function checkUnixWorkerModes(file, { requireModes = true } = {}) {
   const seen = new Set()
-  tar.list({ file, sync: true, strict: true, onReadEntry(entry) {
+  tar.list({ file, sync: true, strict: true, onentry(entry) {
     const name = entry.path
     if (name.includes('\\') || name.startsWith('/') || name.split('/').some(p => p === '..' || p === '.')) {
       throw new Error(`Unsafe tar member: ${name}`)
