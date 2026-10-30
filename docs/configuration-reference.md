@@ -14,13 +14,15 @@ The default bundle declares the eight rows listed below and no legacy `shell`, `
 
 ## Browser settings page
 
+Resident OPS tools and dynamic OPS tool loading are independent. Standard, PTC and Cordis expose `residentTools` (default true) immediately before `dynamicTools`; Minimal has no resident-tools option and publishes no resident file tools. Bash retains its independent switch. Turning resident tools off keeps their saved settings but loads file APIs only on demand when dynamic loading is enabled. Turning both off publishes neither baseline file APIs nor a loader.
+
 The bundle inserts one row named exactly like the package, so this plugin's browser
 half mounts on it and the Plugins page configures it directly. By the maintainer's
-decision the page keeps only **two bundle switches plus four switches per preset**;
+decision the page keeps **four bundle switches and mode-specific preset switches**;
 everything else (worker paths, PTC pools, extra routing text, capture limits, the
 credential fence) stays YAML-only so the page cannot grow into a second settings app.
 
-- **Bundle switches:** Hide the official tools, Dynamic tool discovery. They decide
+- **Bundle switches:** Bash, Hide the host PowerShell, Hide the official tools, Dynamic tool loading. They decide
   whether the same-named switch in each preset below applies.
 - **Each preset (minimal / standard / ptc / cordis):** enabled, Enable the Bash tool,
   Hide the host PowerShell, Hide the official tools, Dynamic tool discovery — all on

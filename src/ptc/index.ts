@@ -55,6 +55,8 @@ const isPtcPresentation = (presentation: Presentation): boolean =>
 export interface PtcGate {
   /** Optional public-consumer routing switch; execution remains independent. */
   guidance?: boolean
+  /** Whether baseline APIs (including configured always-loaded APIs) are published. */
+  resident?: boolean
   /** Whether advanced SDK selection is enabled. */
   dynamic?: boolean
   /** Whether the row owns this Agent's mode. */
@@ -66,6 +68,7 @@ export interface PtcGate {
 export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allows: () => true }): void {
   if (retiredLegacyRow(root, 'ptc')) return
   const config = resolvePtcConfig(rawConfig)
+  const loadable = gate.resident === false ? [...new Set([...config.allowedTools, ...PTC_RESIDENT_TOOLS])] : config.allowedTools
   mountWorkspacePreparation(root)
   let file: string
   try { file = resolveWorker(config) } catch (error) {
@@ -104,7 +107,7 @@ export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allow
         return failure('POLICY_DENIED', 'The calling scope must own this API in authoritative PTC-only presentation.')
       }
       if (tool === 'load_sdk') {
-        const requested = requestedApis(args, gate.dynamic === false ? [] : config.allowedTools)
+        const requested = requestedApis(args, gate.dynamic === false ? [] : loadable)
         if (typeof requested === 'string') return failure('INVALID_ARGUMENT', requested)
         for (const name of requested) entry.pending.add(name)
         return { status: 'completed', tools: requested, nextTurn: true }
@@ -185,9 +188,9 @@ export function apply(root: Context, rawConfig: unknown, gate: PtcGate = { allow
             if (!entry.ptc) { entry.pending.clear(); abortOwner(agent, 'PTC presentation withdrawn'); continue }
             const releaseNative = claimPtcSurface(entry.ctx, agent)
             try {
-              const wanted = new Set([...PTC_RESIDENT_TOOLS, ...config.alwaysLoaded, ...entry.selected])
+              const wanted = new Set([...(gate.resident === false ? [] : [...PTC_RESIDENT_TOOLS, ...config.alwaysLoaded]), ...entry.selected])
               const definitions = [...wanted].map(tool => definition(tool, execute(agent, entry, tool)))
-              if (gate.dynamic !== false) definitions.push(sdkDefinition(config.allowedTools, execute(agent, entry, 'load_sdk')))
+              if (gate.dynamic !== false) definitions.push(sdkDefinition(loadable, execute(agent, entry, 'load_sdk')))
               for (const def of definitions) { ptcDefinitions.add(def); entry.disposers.push(withToolChange([agent], () => entry.ctx!.tools.register(def))); entry.owned.set(def.name, def) }
               entry.disposers.push(releaseNative)
             } catch (error) { releaseNative(); throw error }

@@ -87,9 +87,9 @@ export function apply(root: Context, raw: unknown, gate: DiscoveryGate = { allow
       if (integration) return new Set(integration.files && integration.presentation === 'native'
         ? ['inspect_local_file', 'glob', 'grep', 'read_files', 'result'].map(publicToolName) : [])
       const mode = modeOf(ctx, agent)
-      // A mode row that is off publishes nothing resident, so its names stay in the
-      // discovery pool even though the preset matches.
-      if (mode === undefined || !enabledModes(ctx).has(mode)) return new Set()
+      // A disabled mode or resident switch publishes nothing resident, so those
+      // names stay in the discovery pool even though the preset matches.
+      if (mode === undefined || !enabledModes(ctx).get(mode)?.residentTools) return new Set()
       return new Set(residentTools(mode))
     }
     const permitted = (agent: Agent, rawName?: DiscoverableName): boolean => {

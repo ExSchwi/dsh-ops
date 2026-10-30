@@ -1,9 +1,10 @@
 /**
  * The one configuration surface of the single `dsh-ops` row.
  *
- * The maintainer's page is deliberately small: two bundle-wide switches and four
- * switches per preset. Every other accepted key stays YAML-only, so the page
- * cannot grow into a second settings application. Features keep their own
+ * The maintainer's page is deliberately small: bundle-wide switches and mode
+ * switches (including resident tools only for enhanced presets). Every other
+ * accepted key stays YAML-only, so the page cannot grow into a second settings
+ * application. Features keep their own
  * resolver for those keys; this module only owns what the page exposes.
  *
  * Gating, as specified: a mode's "hide official tools" and "dynamic tools" only
@@ -28,7 +29,7 @@ export type ModeKey = typeof MODES[number]
 export const FEATURES = [...MODES, 'discovery', 'panel', 'tui', 'other'] as const
 export type Feature = typeof FEATURES[number]
 
-/** The two bundle-wide switches. */
+/** Bundle-wide switches; resident publication is deliberately mode-local. */
 export interface GlobalSwitches {
   readonly bash: boolean
   readonly hidePwsh: boolean
@@ -128,8 +129,8 @@ export function resolveMergedConfig(raw?: unknown): MergedConfig {
 function modeState(name: ModeKey, value: unknown): FeatureState<ModeConfig> {
   const { enabled, rest, resolved } = split(name, value)
   return resolved === undefined
-    ? { enabled, config: resolveModeConfig(rest), raw: rest }
-    : { enabled, config: resolved as ModeConfig }
+    ? { enabled, config: resolveModeConfig(rest, name), raw: rest }
+    : { enabled, config: { ...resolved as ModeConfig, ...(name === 'minimal' ? { residentTools: false } : {}) } }
 }
 
 function discoveryState(value: unknown): FeatureState<DiscoveryConfig> {
@@ -173,6 +174,7 @@ export function effectiveMode(state: FeatureState<ModeConfig>, global: GlobalSwi
   const raw = state.raw ?? {}
   return {
     ...raw,
+    residentTools: state.config.residentTools,
     bash: flag(raw, 'bash', true) && global.bash,
     // The companion plugin replaces pwsh 5.1 only while the host shell stays visible.
     hidePwsh: flag(raw, 'hidePwsh', true) && global.hidePwsh && !pwsh7Link,
@@ -195,8 +197,10 @@ const MODE_SWITCHES: Record<string, Field> = {
   dynamicTools: boolean('Publish the discovery entry to this mode (bundle switch must be on).'),
 }
 
-function modeSection(): Field {
-  return { type: 'object', dict: { enabled: boolean('Apply this mode to its sessions.'), ...MODE_SWITCHES } }
+function modeSection(mode: ModeKey): Field {
+  return { type: 'object', dict: { enabled: boolean('Apply this mode to its sessions.'),
+    ...(mode === 'minimal' ? {} : { residentTools: boolean('Publish baseline file tools independently of dynamic loading.') }),
+    ...MODE_SWITCHES } }
 }
 
 /**
@@ -222,7 +226,7 @@ export const Config = settingsConfig(hostConfig, {
     hideOfficialTools: boolean('Bundle switch: allow presets to hide the official file tools.'),
     dynamicTools: boolean('Bundle switch: allow presets to publish the discovery entry.'),
   } },
-  minimal: modeSection(), standard: modeSection(), ptc: modeSection(), cordis: modeSection(),
+  minimal: modeSection('minimal'), standard: modeSection('standard'), ptc: modeSection('ptc'), cordis: modeSection('cordis'),
   // Only the switch is editable; capture limits, PTC pools, routing text, worker
   // paths and the credential fence stay YAML-only by design.
   panel: { type: 'object', dict: { enabled: boolean('Capture OPS activity for developer diagnosis.') } },

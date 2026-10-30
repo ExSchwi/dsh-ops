@@ -23,6 +23,8 @@ export interface ModeConfig extends ResolvedConfig {
   hideOfficialTools: boolean
   /** Publish the discovery entry to this preset's sessions (gated by the bundle switch). */
   dynamicTools: boolean
+  /** Publish baseline file tools independently of progressive discovery. */
+  residentTools: boolean
 }
 
 /** Every key a mode row accepts: the settings each enhanced preset really reads. */
@@ -31,20 +33,21 @@ export const MODE_CONFIG_KEYS: readonly string[] = Object.freeze([
   'binaryPath', 'required', 'denyCredentialReads', 'promptPolicy', 'extraGuidance',
   'bashPath', 'publishBashTool', 'allowSystemShellFallback', 'configUpdateVersion',
   'allowedTools', 'alwaysLoaded',
-  'bash', 'hidePwsh', 'hideOfficialTools', 'dynamicTools',
+  'bash', 'hidePwsh', 'hideOfficialTools', 'dynamicTools', 'residentTools',
 ])
 
 const PTC_KEYS = new Set(['allowedTools', 'alwaysLoaded'])
-/** The four switches the single row's page exposes; defaults are all on. */
-const SWITCH_KEYS = new Set(['bash', 'hidePwsh', 'hideOfficialTools', 'dynamicTools'])
+/** Mode publication switches; enhanced presets default to on. */
+const SWITCH_KEYS = new Set(['bash', 'hidePwsh', 'hideOfficialTools', 'dynamicTools', 'residentTools'])
 
 /**
  * Validate one mode row's config.
  * @param rawConfig - the loader row's config value.
+ * @param mode - when supplied, enforces Minimal's lack of resident file tools.
  * @returns the resolved configuration.
  * @throws ConfigError naming an unknown or malformed key.
  */
-export function resolveModeConfig(rawConfig?: unknown): ModeConfig {
+export function resolveModeConfig(rawConfig?: unknown, mode?: ModeId): ModeConfig {
   if (rawConfig !== undefined && rawConfig !== null && (typeof rawConfig !== 'object' || Array.isArray(rawConfig))) {
     throw new Error('config must be an object')
   }
@@ -68,7 +71,8 @@ export function resolveModeConfig(rawConfig?: unknown): ModeConfig {
   const api = parsePtcConfig(ptc)
   return { ...resolved, allowedTools: api.allowedTools, alwaysLoaded: api.alwaysLoaded,
     bash, hidePwsh: sw('hidePwsh', true),
-    hideOfficialTools: sw('hideOfficialTools', true), dynamicTools: sw('dynamicTools', true) }
+    hideOfficialTools: sw('hideOfficialTools', true), dynamicTools: sw('dynamicTools', true),
+    residentTools: mode !== 'minimal' && sw('residentTools', true) }
 }
 
 /**
@@ -77,10 +81,10 @@ export function resolveModeConfig(rawConfig?: unknown): ModeConfig {
  * @returns field descriptors for the row settings form.
  */
 export function modeFields(mode: ModeId): Record<string, Field> {
-  // The maintainer's page: four switches per preset, nothing else. Every other
-  // accepted key stays YAML-only so the page cannot grow into a second settings app.
-  void mode
+  // Minimal has no resident file surface; enhanced presets expose its switch.
+  // Other accepted keys stay YAML-only to keep the settings page small.
   return {
+    ...(mode === 'minimal' ? {} : { residentTools: editable('boolean', 'Publish baseline file tools independently of dynamic loading.') }),
     bash: editable('boolean', 'Publish Bash for authorized sessions.'),
     hidePwsh: editable('boolean', 'Hide the official Windows shell once Bash replaces it.'),
     hideOfficialTools: editable('boolean', 'Hide the official file tools this mode replaces.'),
@@ -96,7 +100,7 @@ export function modeFields(mode: ModeId): Record<string, Field> {
 export function modeConfigForm(mode: ModeId) {
   return settingsConfig(value => {
     const raw = configObject(value ?? {})
-    const resolved = resolveModeConfig(raw)
+    const resolved = resolveModeConfig(raw, mode)
     // Keep raw ordinary keys: the host saves individual paths, and the component
     // owns normalization when the row activates.
     return { ...raw, publishBashTool: resolved.publishBashTool, promptPolicy: resolved.promptPolicy }

@@ -20,10 +20,13 @@
           enabled: true
         standard:
           enabled: true
+          residentTools: true
         ptc:
           enabled: true
+          residentTools: true
         cordis:
           enabled: true
+          residentTools: true
         discovery:
           enabled: true
         panel:

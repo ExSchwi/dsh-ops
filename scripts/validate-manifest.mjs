@@ -507,10 +507,10 @@ check(JSON.stringify(pkg.os) === '["win32","linux","darwin"]' && JSON.stringify(
 /** One declaration states every platform the package serves; the row carries no per-feature claims. */
 const claims = JSON.stringify(single?.platforms)
 check(claims === '["win32","linux","darwin"]', 'the row serves the declared platform matrix')
-check(platformClaims('dsh-ops-background') === undefined,
+check(!components.some(component => component.id === 'dsh-ops-background'),
   'the removed background component is no longer declared')
-check(JSON.stringify(platformClaims('dsh-ops-panel')) === '["win32","linux","darwin"]',
-  'the panel capture component supports the declared targets (static files, no platform payload)')
+check(claims === '["win32","linux","darwin"]' && fs.existsSync(path.join(PACKAGE_ROOT, 'lib/panel/panel.html')),
+  'the single row carries panel capture on the declared targets (static files, no platform payload)')
 /** The viewer is runtime output, so the template itself has to be in the package. */
 const panelTemplate = 'lib/panel/panel.html'
 check(

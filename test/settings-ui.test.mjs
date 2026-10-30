@@ -87,6 +87,31 @@ await test('the page saves only changed switches with the host revision, then re
   } finally { await view.close(); await shutdown(fixture.ctx) }
 })
 
+await test('only non-minimal presets expose adjacent independent resident and dynamic switches', async () => {
+  const writes = []
+  const form = { state: ready({}), mutate: async ops => { writes.push(ops); return true } }
+  const view = await mount(RowForm, { form, Switch: TestSwitch })
+  try {
+    for (const label of [en.featureMinimal, en.featureStandard, en.featurePtc, en.featureCordis]) {
+      await expand(view.container, label)
+      const card = group(view.container, label)
+      assert.ok(switchIn(card, en.dynamicTools))
+      if (label === en.featureMinimal) {
+        assert.equal(switchIn(card, en.swResidentTools), null)
+      } else {
+        const switches = [...card.querySelectorAll('button[role=switch]')]
+        const resident = switchIn(card, en.swResidentTools)
+        assert.ok(resident)
+        assert.equal(switches[switches.indexOf(resident) + 1], switchIn(card, en.dynamicTools))
+      }
+    }
+    await click(switchIn(group(view.container, en.featureStandard), en.swResidentTools))
+    assert.equal(switchIn(group(view.container, en.featureStandard), en.dynamicTools).getAttribute('aria-checked'), 'true')
+    await click(button(view.container, en.save))
+    assert.deepEqual(writes[0], [{ op: 'set', path: ['standard', 'residentTools'], value: false }])
+  } finally { await view.close() }
+})
+
 await test('a preset starts collapsed and reveals its switches on demand', async () => {
   const form = { state: ready({}), mutate: async () => true }
   const view = await mount(RowForm, { form, Switch: TestSwitch })
@@ -96,7 +121,7 @@ await test('a preset starts collapsed and reveals its switches on demand', async
     assert.equal(disclosure(standard(), en.featureStandard).getAttribute('aria-expanded'), 'false')
     await expand(view.container, en.featureStandard)
     assert.equal(switchIn(standard(), en.swBash)?.getAttribute('aria-checked'), 'true')
-    assert.equal(standard().querySelectorAll('button[role=switch]').length, 5)
+    assert.equal(standard().querySelectorAll('button[role=switch]').length, 6)
     await expand(view.container, en.featureStandard)
     assert.equal(switchIn(standard(), en.swBash), null, 'a second click collapses it again')
   } finally { await view.close() }

@@ -36,7 +36,7 @@ export function replacementTargets(mode: ModeId, platform: string = process.plat
 }
 
 export function applyMode(root: Context, rawConfig: unknown, mode: ModeId): void {
-  applyResolvedMode(root, resolveModeConfig(rawConfig), mode)
+  applyResolvedMode(root, resolveModeConfig(rawConfig, mode), mode)
 }
 
 /**
@@ -64,12 +64,12 @@ export function applyResolvedMode(root: Context, config: ModeConfig, mode: ModeI
   if (config.hideOfficialTools) {
     mountReplacements(root, { id: mode, targets: replacementTargets(mode, process.platform, config.hidePwsh), gate: { allows: matches, watch }, keepOfficial: () => compatibilityOn(root) })
   }
-  if (plan.nativeFiles) mountNative(root, config, { id: mode, tools: NATIVE_RESIDENT_RAW,
+  if (plan.nativeFiles && config.residentTools) mountNative(root, config, { id: mode, tools: NATIVE_RESIDENT_RAW,
     section: plan.section === null ? null : `mode-${plan.section}`, gate: { allows: matches, watch } })
   if (plan.ptc) {
     mountPtc(root, {
       binaryPath: config.binaryPath, required: config.required,
       allowedTools: config.allowedTools, alwaysLoaded: config.alwaysLoaded,
-    }, { allows: matches, watch })
+    }, { allows: matches, watch, resident: config.residentTools, dynamic: config.dynamicTools })
   }
 }

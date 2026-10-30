@@ -20,7 +20,8 @@ await test('the page matches the host descriptor, and the opt-in switches share 
   assert.deepEqual(Object.keys(Config.dict.global.dict), SWITCHES)
   for (const section of ['minimal', 'standard', 'ptc', 'cordis']) {
     const group = GROUPS.find(entry => entry.id === section)
-    assert.deepEqual(group.fields.map(spec => spec.path[1]), SWITCHES, section)
+    const expected = section === 'minimal' ? SWITCHES : ['bash', 'hidePwsh', 'hideOfficialTools', 'residentTools', 'dynamicTools']
+    assert.deepEqual(group.fields.map(spec => spec.path[1]), expected, section)
     assert.deepEqual([...group.fields.map(spec => spec.path[1]), 'enabled'].sort(), Object.keys(Config.dict[section].dict).sort(), section)
   }
   // compat/panel/tui used to be three single-switch cards; they are one card now.

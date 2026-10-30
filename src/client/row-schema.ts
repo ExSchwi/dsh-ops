@@ -52,23 +52,24 @@ export const GLOBAL: readonly FieldSpec[] = Object.freeze([
 ])
 
 /** The four preset switches, identical in every mode. */
-const MODE_FIELDS = (section: string): readonly FieldSpec[] => Object.freeze([
+const MODE_FIELDS = (section: string, resident: boolean): readonly FieldSpec[] => Object.freeze([
   field(at(section, 'bash'), 'swBash', 'swBashHint', 'bash'),
   field(at(section, 'hidePwsh'), 'swHidePwsh', 'swHidePwshHint', 'hidePwsh'),
   field(at(section, 'hideOfficialTools'), 'hideOfficialTools', 'swHideOfficialToolsHint', 'hideOfficialTools'),
+  ...(resident ? [field(at(section, 'residentTools'), 'swResidentTools', 'swResidentToolsHint')] : []),
   field(at(section, 'dynamicTools'), 'dynamicTools', 'swDynamicToolsHint', 'dynamicTools'),
 ])
 
-const modeGroup = (id: string, label: LocaleKey, hint: LocaleKey): GroupSpec =>
-  ({ id, label, hint, toggle: true, fields: MODE_FIELDS(id) })
+const modeGroup = (id: string, label: LocaleKey, hint: LocaleKey, resident: boolean): GroupSpec =>
+  ({ id, label, hint, toggle: true, fields: MODE_FIELDS(id, resident) })
 
 /** Every group, in page order. */
 export const GROUPS: readonly GroupSpec[] = Object.freeze([
   { id: 'global', label: 'groupGlobal', hint: 'groupGlobalHint', toggle: false, fields: GLOBAL },
-  modeGroup('minimal', 'featureMinimal', 'featureMinimalHint'),
-  modeGroup('standard', 'featureStandard', 'featureStandardHint'),
-  modeGroup('ptc', 'featurePtc', 'featurePtcHint'),
-  modeGroup('cordis', 'featureCordis', 'featureCordisHint'),
+  modeGroup('minimal', 'featureMinimal', 'featureMinimalHint', false),
+  modeGroup('standard', 'featureStandard', 'featureStandardHint', true),
+  modeGroup('ptc', 'featurePtc', 'featurePtcHint', true),
+  modeGroup('cordis', 'featureCordis', 'featureCordisHint', true),
   // The three opt-in features share one card: separate cards for one switch each
   // read as three empty shells next to the presets.
   { id: 'other', label: 'groupOther', hint: 'groupOtherHint', toggle: false, fields: Object.freeze([
@@ -82,9 +83,9 @@ export const GROUPS: readonly GroupSpec[] = Object.freeze([
 const DEFAULTS: Readonly<Record<string, boolean>> = Object.freeze({
   'global.bash': true, 'global.hidePwsh': true, 'global.hideOfficialTools': true, 'global.dynamicTools': true,
   'minimal.enabled': true, 'minimal.bash': true, 'minimal.hidePwsh': true, 'minimal.hideOfficialTools': true, 'minimal.dynamicTools': true,
-  'standard.enabled': true, 'standard.bash': true, 'standard.hidePwsh': true, 'standard.hideOfficialTools': true, 'standard.dynamicTools': true,
-  'ptc.enabled': true, 'ptc.bash': true, 'ptc.hidePwsh': true, 'ptc.hideOfficialTools': true, 'ptc.dynamicTools': true,
-  'cordis.enabled': true, 'cordis.bash': true, 'cordis.hidePwsh': true, 'cordis.hideOfficialTools': true, 'cordis.dynamicTools': true,
+  'standard.enabled': true, 'standard.residentTools': true, 'standard.bash': true, 'standard.hidePwsh': true, 'standard.hideOfficialTools': true, 'standard.dynamicTools': true,
+  'ptc.enabled': true, 'ptc.residentTools': true, 'ptc.bash': true, 'ptc.hidePwsh': true, 'ptc.hideOfficialTools': true, 'ptc.dynamicTools': true,
+  'cordis.enabled': true, 'cordis.residentTools': true, 'cordis.bash': true, 'cordis.hidePwsh': true, 'cordis.hideOfficialTools': true, 'cordis.dynamicTools': true,
   'panel.enabled': false, 'tui.enabled': false, 'other.pwsh7Link': false,
 })
 
